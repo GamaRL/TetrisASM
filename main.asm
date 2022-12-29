@@ -381,6 +381,7 @@ generar_aleatorio macro max
   test ax, max_rand_index
   jz  fin_generar_aleatorio
   mov rand_index, 0h
+  mov di, [rand_index]
   mov [bx + di], dl
 fin_generar_aleatorio:
 endm

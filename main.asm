@@ -23,7 +23,11 @@ ends
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Definición de constantes
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;Valor ASCII de caracteres para el marco del programa
+
+; Valores auxiliares para generar números pseudo-aleatorios
+max_rand_index    equ   5d
+
+; Valor ASCII de caracteres para el marco del programa
 marcoEsqInfIzq    equ   200d  ;'╚'
 marcoEsqInfDer    equ   188d  ;'╝'
 marcoEsqSupDer    equ   187d  ;'╗'
@@ -77,7 +81,7 @@ bgBlanco          equ   0F0h
 lim_superior      equ    1
 lim_inferior      equ    23
 lim_izquierdo     equ    1
-lim_derecho       equ    30
+lim_derecho       equ    15
 
 ;Valores de referencia para la posición inicial de la primera pieza
 ini_columna       equ   lim_derecho/2
@@ -155,10 +159,15 @@ hiscore           dw    0
 speed             dw    4
 next              db    ?
 
-; Pieza actual ***
-pieza_curr        pieza  ?
-pieza_next        pieza  ?
+; Variables auxiliares para generar números pseudo-aleatorios
+rand_seq          db    max_rand_index dup(?)
+rand_index        dw    0
 
+; Almacenamiento de información de las piezas
+pieza_curr        pieza  ? ; Pieza actual
+pieza_next        pieza  ? ; Pieza siguiente
+
+; Definición de la estructura de cada una de las piezas (y1,x1),(y2,x2)...(yn,xn)
 i_shape      db    0, 0,-1, 0, 1, 0, 2, 0
 j_shape      db    0, 0,-1, 0, 1, 0, 1, 1
 l_shape      db    0, 0,-1, 0, 1, 0, 1,-1
@@ -167,68 +176,30 @@ s_shape      db    0, 0, 0, 1,-1, 0,-1,-1
 t_shape      db    0, 0, 0, 1, 0,-1, 1, 0
 z_shape      db    0, 0, 0, 1, 1, 0, 1,-1
 
-; //TODO: Checar para eliminar
-;Coordenadas de la posición de referencia para la pieza en el área de juego
-pieza_col         db    ini_columna
-pieza_ren         db    ini_renglon
-
-
-;Coordenadas de los pixeles correspondientes a la pieza en el área de juego
-;El arreglo cols guarda las columnas, y rens los renglones
-pieza_cols        db     0,0,0,0
-pieza_rens        db     0,0,0,0
-
-;Valor de la pieza actual correspondiente a las constantes Piezas
-pieza_actual      db     sinvertida
-
-;Color de la pieza actual, correspondiente a los colores del carácter
-actual_color      db     0
-
-;Coordenadas de los pixeles correspondientes a la pieza siguiente
-next_cols         db     0,0,0,0
-next_rens         db     0,0,0,0
-
-;Color de la pieza siguiente, correspondiente con los colores del carácter
-next_color        db     0
-
-
-;A continuación se tienen algunas variables auxiliares
-;Variables min y max para almacenar los extremos izquierdo, derecho, inferior y superior, para detectar colisiones
-pieza_col_max     db     0
-pieza_col_min     db     0
-pieza_ren_max     db     0
-pieza_ren_min     db     0
-
-;Variable para pasar como parámetro al imprimir una pieza
-pieza_color       db     0
-
-;Variables auxiliares de uso general
-aux1              db     0
-aux2              db     0
-
-;Variables auxiliares para el manejo de posiciones
+; Variables auxiliares para el manejo de posiciones
 col_aux           db     0
 ren_aux           db     0
 
-;variables para manejo del reloj del sistema
-ticks             dw    0     ;contador de ticks
+; Variables para manejo del reloj del sistema
+ticks             dw    0      ;contador de ticks
 tick_ms           dw    55     ;55 ms por cada tick del sistema, esta variable se usa para operación de MUL convertir ticks a segundos
 mil               dw    1000   ;dato de valor decimal 1000 para operación DIV entre 1000
 diez              dw    10
 
+; Variables para el status del juego
 status            db    0     ;Status de juegos: 0 stop, 1 active, 2 pause
 conta             db    0     ;Contador auxiliar para algunas operaciones
 
-;Variables que sirven de parámetros de entrada para el procedimiento IMPRIME_BOTON
+; Variables que sirven de parámetros de entrada para el procedimiento IMPRIME_BOTON
 boton_caracter    db    0
 boton_renglon     db    0
 boton_columna     db    0
 boton_color       db    0
 
-
-;Auxiliar para calculo de coordenadas del mouse
+; Auxiliar para cálculo de coordenadas del mouse
 ocho              db     8
-;Cuando el driver del mouse no está disponible
+
+; Mensaje para cuando el driver del mouse no esté disponible
 no_mouse          db     'No se encuentra driver de mouse. Presione [enter] para salir$'
 
 ;////////////////////////////////////////////////////
@@ -240,82 +211,83 @@ no_mouse          db     'No se encuentra driver de mouse. Presione [enter] para
 clear macro
   mov   ax,0003h  ;ah = 00h, selecciona modo video
                   ;al = 03h. Modo texto, 16 colores
-  int   10h       ;llama interrupcion 10h con opcion 00h.  ;Establece modo de video limpiando pantalla
+  int   10h       ;llama interrupcion 10h con opcion 00h.
+                  ;Establece modo de video limpiando pantalla
 endm
 
-;posiciona_cursor - Cambia la posición del cursor a la especificada con 'renglon' y 'columna'
-posiciona_cursor macro renglon,columna
-  mov   dh,renglon  ;dh = renglon
-  mov   dl,columna  ;dl = columna
-  mov   bx,0
-  mov   ax,0200h    ;preparar ax para interrupcion, opcion 02h
+; posiciona_cursor - Cambia la posición del cursor a la especificada con 'renglon' y 'columna'
+posiciona_cursor macro renglon, columna
+  mov   dh, renglon  ;dh = renglon
+  mov   dl, columna  ;dl = columna
+  mov   bx, 0
+  mov   ax, 0200h    ;preparar ax para interrupcion, opcion 02h
   int   10h         ;interrupcion 10h y opcion 02h. Cambia posicion del cursor
 endm
 
-;inicializa_ds_es - Inicializa el valor del registro DS y ES
+; inicializa_ds_es - Inicializa el valor del registro DS y ES
 inicializa_ds_es   macro
-  mov   ax,@data
-  mov   ds,ax
-  mov   es,ax     ;Este registro se va a usar, junto con BP, para imprimir cadenas utilizando interrupción 10h
+  mov   ax, @data
+  mov   ds, ax
+  mov   es, ax     ;Este registro se va a usar, junto con BP, para imprimir cadenas utilizando interrupción 10h
 endm
 
-;muestra_cursor_mouse - Establece la visibilidad del cursor del mouser
+; muestra_cursor_mouse - Establece la visibilidad del cursor del mouser
 muestra_cursor_mouse  macro
   mov   ax,1    ;opcion 0001h
   int   33h      ;int 33h para manejo del mouse. Opcion AX=0001h
           ;Habilita la visibilidad del cursor del mouse en el programa
 endm
 
-;posiciona_cursor_mouse - Establece la posición inicial del cursor del mouse
+; posiciona_cursor_mouse - Establece la posición inicial del cursor del mouse
 posiciona_cursor_mouse  macro columna,renglon
-  mov   dx,renglon
-  mov   cx,columna
-  mov   ax,4    ;opcion 0004h
+  mov   dx, renglon
+  mov   cx, columna
+  mov   ax, 4    ;opcion 0004h
   int   33h     ;int 33h para manejo del mouse. Opcion AX=0001h
                 ;Habilita la visibilidad del cursor del mouse en el programa
 endm
 
-;oculta_cursor_teclado - Oculta la visibilidad del cursor del teclado
+; oculta_cursor_teclado - Oculta la visibilidad del cursor del teclado
 oculta_cursor_teclado  macro
-  mov   ah,01h     ;Opcion 01h
-  mov   cx,2607h   ;Parametro necesario para ocultar cursor
+  mov   ah, 01h     ;Opcion 01h
+  mov   cx, 2607h   ;Parametro necesario para ocultar cursor
   int   10h     ;int 10, opcion 01h. Cambia la visibilidad del cursor del teclado
 endm
 
-;apaga_cursor_parpadeo - Deshabilita el parpadeo del cursor cuando se imprimen caracteres con fondo de color
-;Habilita 16 colores de fondo
+; apaga_cursor_parpadeo - Deshabilita el parpadeo del cursor cuando se imprimen caracteres con fondo de color
+; Habilita 16 colores de fondo
 apaga_cursor_parpadeo  macro
-  mov ax,1003h     ;Opcion 1003h
-  xor bl,bl       ;BL = 0, parámetro para int 10h opción 1003h
-    int 10h       ;int 10, opcion 01h. Cambia la visibilidad del cursor del teclado
+  mov ax, 1003h     ;Opcion 1003h
+  xor bl ,bl        ;BL = 0, parámetro para int 10h opción 1003h
+  int 10h           ;int 10, opcion 01h. Cambia la visibilidad del cursor del teclado
 endm
 
-;imprime_caracter_color - Imprime un caracter de cierto color en pantalla, especificado por 'caracter', 'color' y 'bg_color'.
-;Los colores disponibles están en la lista a continuacion;
-; Colores:
-; 0h: Negro
-; 1h: Azul
-; 2h: Verde
-; 3h: Cyan
-; 4h: Rojo
-; 5h: Magenta
-; 6h: Cafe
-; 7h: Gris Claro
-; 8h: Gris Oscuro
-; 9h: Azul Claro
-; Ah: Verde Claro
-; Bh: Cyan Claro
-; Ch: Rojo Claro
-; Dh: Magenta Claro
-; Eh: Amarillo
-; Fh: Blanco
-; utiliza int 10h opcion 09h
-; 'caracter' - caracter que se va a imprimir
-; 'color' - color que tomará el caracter
-; 'bg_color' - color de fondo para el carácter en la celda
-; Cuando se define el color del carácter, éste se hace en el registro BL:
-; La parte baja de BL (los 4 bits menos significativos) define el color del carácter
-; La parte alta de BL (los 4 bits más significativos) define el color de fondo "background" del carácter
+; imprime_caracter_color - Imprime un caracter de cierto color en pantalla, especificado por 'caracter', 'color' y 'bg_color'.
+;  Los colores disponibles están en la lista a continuacion;
+;  Colores:
+;  0h: Negro
+;  1h: Azul
+;  2h: Verde
+;  3h: Cyan
+;  4h: Rojo
+;  5h: Magenta
+;  6h: Cafe
+;  7h: Gris Claro
+;  8h: Gris Oscuro
+;  9h: Azul Claro
+;  Ah: Verde Claro
+;  Bh: Cyan Claro
+;  Ch: Rojo Claro
+;  Dh: Magenta Claro
+;  Eh: Amarillo
+;  Fh: Blanco
+;  utiliza int 10h opcion 09h
+;  'caracter' - caracter que se va a imprimir
+;  'color' - color que tomará el caracter
+;  'bg_color' - color de fondo para el carácter en la celda
+;  Cuando se define el color del carácter, éste se hace en el registro BL:
+;  La parte baja de BL (los 4 bits menos significativos) define el color del carácter
+;  La parte alta de BL (los 4 bits más significativos) define el color de fondo "background" del carácter
 imprime_caracter_color macro caracter,color,bg_color
   mov ah, 09h        ;preparar AH para interrupcion, opcion 09h
   mov al, caracter     ;AL = caracter a imprimir
@@ -329,26 +301,26 @@ imprime_caracter_color macro caracter,color,bg_color
   int 10h         ;int 10h, AH=09h, imprime el caracter en AL con el color BL
 endm
 
-;imprime_caracter_color - Imprime un caracter de cierto color en pantalla, especificado por 'caracter', 'color' y 'bg_color'.
-; utiliza int 10h opcion 09h
-; 'cadena' - nombre de la cadena en memoria que se va a imprimir
-; 'long_cadena' - longitud (en caracteres) de la cadena a imprimir
-; 'color' - color que tomarán los caracteres de la cadena
-; 'bg_color' - color de fondo para los caracteres en la cadena
+; imprime_caracter_color - Imprime un caracter de cierto color en pantalla, especificado por 'caracter', 'color' y 'bg_color'.
+;  utiliza int 10h opcion 09h
+;  'cadena' - nombre de la cadena en memoria que se va a imprimir
+;  'long_cadena' - longitud (en caracteres) de la cadena a imprimir
+;  'color' - color que tomarán los caracteres de la cadena
+;  'bg_color' - color de fondo para los caracteres en la cadena
 imprime_cadena_color macro cadena,long_cadena,color,bg_color
-  mov ah,13h        ;preparar AH para interrupcion, opcion 13h
+  mov ah,13h          ;preparar AH para interrupcion, opcion 13h
   lea bp,cadena       ;BP como apuntador a la cadena a imprimir
-  mov bh,0        ;BH = numero de pagina
+  mov bh,0            ;BH = numero de pagina
   mov bl,color
-  or bl,bg_color       ;BL = color del caracter
-              ;'color' define los 4 bits menos significativos
-              ;'bg_color' define los 4 bits más significativos
-  mov cx,long_cadena    ;CX = longitud de la cadena, se tomarán este número de localidades a partir del apuntador a la cadena
-  int 10h         ;int 10h, AH=09h, imprime el caracter en AL con el color BL
+  or bl,bg_color      ;BL = color del caracter
+                      ;'color' define los 4 bits menos significativos
+                      ;'bg_color' define los 4 bits más significativos
+  mov cx,long_cadena  ;CX = longitud de la cadena, se tomarán este número de localidades a partir del apuntador a la cadena
+  int 10h             ;int 10h, AH=09h, imprime el caracter en AL con el color BL
 endm
 
-;lee_mouse - Revisa el estado del mouse
-;Devuelve:
+; lee_mouse - Revisa el estado del mouse
+; Devuelve:
 ;;BX - estado de los botones
 ;;;Si BX = 0000h, ningun boton presionado
 ;;;Si BX = 0001h, boton izquierdo presionado
@@ -361,6 +333,16 @@ endm
 lee_mouse  macro
   mov ax,0003h
   int 33h
+endm
+
+lee_teclado macro
+  mov ah, 01h
+  int 16h
+endm
+
+limpia_teclado macro
+  mov ah, 00h
+  int 16h
 endm
 
 ;comprueba_mouse - Revisa si el driver del mouse existe
@@ -379,13 +361,28 @@ delimita_mouse_h   macro minimo,maximo
 endm
 
 generar_aleatorio macro max
+  local fin_generar_aleatorio
   mov ah, 00h
-  int 1ah
+  int 1Ah
+
+  lea bx, [rand_seq]
+  mov di, [rand_index]
+
+  mov al, [bx + di]
+  xor dl, al
 
   mov  ax, dx
   xor  dx, dx
-  mov  cx, 10    
+  mov  cx, max
   div  cx
+
+  inc rand_index
+  mov ax, rand_index
+  test ax, max_rand_index
+  jz  fin_generar_aleatorio
+  mov rand_index, 0h
+  mov [bx + di], dl
+fin_generar_aleatorio:
 endm
 
 crear_pieza   macro pieza
@@ -480,6 +477,13 @@ loop_girar_generada:
 
 endm
 
+pausar_programa macro t1, t2
+  mov   cx, t1
+  mov   dx, t2
+  mov   ah, 86h
+  int   15h
+endm
+
 ;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;Fin Macros;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -506,29 +510,31 @@ imprime_ui:
   call DIBUJA_UI       ;procedimiento que dibuja marco de la interfaz de usuario
   muestra_cursor_mouse   ;hace visible el cursor del mouse
   posiciona_cursor_mouse 320d,16d  ;establece la posición del mouse
+
 ;Revisar que el boton izquierdo del mouse no esté presionado
 ;Si el botón está suelto, continúa a la sección "mouse"
 ;si no, se mantiene indefinidamente en "mouse_no_clic" hasta que se suelte
-mouse_no_clic:
+lectura_entrada:
+  pausar_programa 1h, 0000h
+  call  borra_actual
+  inc   [pieza_curr.y]
+  call  dibuja_actual
   lee_mouse
-  test bx,0001h
-  jnz mouse_no_clic
-;Lee el mouse y avanza hasta que se haga clic en el boton izquierdo
+  cmp bx, 01h
+  je  mouse
+  lee_teclado
+  jnz teclado
+  jmp lectura_entrada
+
 mouse:
-  mov     cx, 01h
-  mov     dx, 86A0h
-  mov     ah, 86h
-  int     15h
-  inc [pieza_curr.y]
-  call dibuja_actual
   lee_mouse
 conversion_mouse:
   ;Leer la posicion del mouse y hacer la conversion a resolucion
   ;80x25 (columnas x renglones) en modo texto
-  mov ax,dx       ;Copia DX en AX. DX es un valor entre 0 y 199 (renglon)
-  div [ocho]       ;Division de 8 bits
-            ;divide el valor del renglon en resolucion 640x200 en donde se encuentra el mouse
-            ;para obtener el valor correspondiente en resolucion 80x25
+  mov ax,dx       ; Copia DX en AX. DX es un valor entre 0 y 199 (renglon)
+  div [ocho]      ; Division de 8 bits
+            ; divide el valor del renglon en resolucion 640x200 en donde se encuentra el mouse
+            ; para obtener el valor correspondiente en resolucion 80x25
   xor ah,ah       ;Descartar el residuo de la division anterior
   mov dx,ax       ;Copia AX en DX. AX es un valor entre 0 y 24 (renglon)
 
@@ -541,7 +547,7 @@ conversion_mouse:
 
   ;Aquí se revisa si se hizo clic en el botón izquierdo
   test bx,0001h     ;Para revisar si el boton izquierdo del mouse fue presionado
-  jz mouse       ;Si el boton izquierdo no fue presionado, vuelve a leer el estado del mouse
+  jz lectura_entrada       ;Si el boton izquierdo no fue presionado, vuelve a leer el estado del mouse
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;Aqui va la lógica de la posicion del mouse;
@@ -550,7 +556,7 @@ conversion_mouse:
   ;se va a revisar si fue dentro del boton [X]
   cmp dx,0
   je boton_x
-  jmp mouse_no_clic
+  jmp lectura_entrada
 boton_x:
   jmp boton_x1
 ;Lógica para revisar si el mouse fue presionado en [X]
@@ -558,16 +564,31 @@ boton_x:
 boton_x1:
   cmp cx,76
   jge boton_x2
-  jmp mouse_no_clic
+  jmp lectura_entrada
 boton_x2:
   cmp cx,78
   jbe boton_x3
-  jmp mouse_no_clic
+  jmp lectura_entrada
 boton_x3:
   ;Se cumplieron todas las condiciones
   jmp salir
 
-  jmp mouse_no_clic
+  jmp lectura_entrada
+  
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;Aqui va la lógica de las teclas presionadas
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+teclado:
+  call borra_actual
+  lea ax, [pieza_curr]
+  push ax
+  call giro_izq
+  pop ax
+  call dibuja_actual
+  limpia_teclado
+  jmp lectura_entrada
+
+
 ;Si no se encontró el driver del mouse, muestra un mensaje y el usuario debe salir tecleando [enter]
 salir_enter:
   mov ah,08h
@@ -810,10 +831,8 @@ DIBUJA_UI proc
   ;Inicializa variables del juego
   DATOS_INICIALES proc
     mov [lines_score],0
-    mov [pieza_rens],ini_renglon
-    mov [pieza_cols],ini_columna
-    mov [pieza_ren],ini_renglon
-    mov [pieza_col],ini_columna
+    crear_pieza pieza_curr
+    crear_pieza pieza_next
     ;agregar otras variables necesarias
     ret
   endp
@@ -881,9 +900,17 @@ DIBUJA_UI proc
     add col_aux, ah
     mov ah, [di.y]
     add ren_aux, ah
+
+    ; No dibuja los bloques fuera del marco
+    cmp ren_aux, lim_superior
+    jl fin_dibujar_bloque
+    cmp ren_aux, lim_inferior
+    jg fin_dibujar_bloque
+
     posiciona_cursor ren_aux, col_aux
     imprime_caracter_color 254, [si.color], bgGrisOscuro
 
+fin_dibujar_bloque:
     pop ax
     pop di
     pop si
@@ -926,18 +953,63 @@ DIBUJA_UI proc
     ret
   endp
 
-  BORRA_PIEZA_ACTUAL proc
-    ;Implementar
+  BORRA_ACTUAL proc
+    lea si, pieza_curr
+    lea di, [pieza_curr.bloques]
+    mov al, [pieza_curr.x]
+    mov ah, [pieza_curr.y]
+    mov [col_aux], al
+    mov [ren_aux], ah
+
+    call BORRA_PIEZA
     ret
   endp
 
   BORRA_NEXT proc
-    ;implementar
+    lea si, pieza_next
+    lea di, pieza_next.bloques
+    mov [col_aux], next_col+10
+    mov [ren_aux], next_ren-1
+
+    call BORRA_PIEZA
+
     ret
   endp
 
   BORRA_PIEZA proc
-    ;implementar
+    mov cx, 4
+  loop_borra_pieza:
+    push cx
+    push si
+    push di
+    mov al, col_aux
+    mov ah, ren_aux
+    push ax
+
+    mov ah, [di.x]
+    add col_aux, ah
+    mov ah, [di.y]
+    add ren_aux, ah
+
+    ; No borra los bloques fuera del marco
+    cmp ren_aux, lim_superior
+    jl fin_borra_bloque
+    cmp ren_aux, lim_inferior
+    jg fin_borra_bloque
+    posiciona_cursor ren_aux, col_aux
+    imprime_caracter_color 32, cNegro, bgNegro
+
+fin_borra_bloque:
+    pop ax
+    pop di
+    pop si
+    pop cx
+
+    mov ren_aux, ah
+    mov col_aux, al
+    add di, size bloque
+
+    loop loop_borra_pieza
     ret
   endp
 

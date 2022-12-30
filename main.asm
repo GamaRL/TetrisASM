@@ -2,7 +2,7 @@ title "Proyecto: Tetris"
   .model small
   .386        ; Versión del procesador
   .stack 512  ; Tamaño del segmento de "stack"
-  .data       ; Iniciod del segmento de datos
+  .data       ; Inicio del segmento de datos
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -158,6 +158,9 @@ lines_score       dw    0
 hiscore           dw    0
 speed             dw    4
 next              db    ?
+
+; Variable para representar el área de juego
+tablero           db    (lim_derecho - lim_izquierdo)*(lim_inferior - lim_superior) dup(5h)
 
 ; Variables auxiliares para generar números pseudo-aleatorios
 rand_seq          db    max_rand_index dup(?)
@@ -492,8 +495,6 @@ endm
   .code
 inicio:          ;etiqueta inicio
   inicializa_ds_es
-  crear_pieza pieza_curr
-  crear_pieza pieza_next
 
   comprueba_mouse    ;macro para revisar driver de mouse
   xor ax, 0FFFFh    ;compara el valor de AX con FFFFh, si el resultado es zero, entonces existe el driver de mouse
@@ -516,10 +517,43 @@ imprime_ui:
 ;Si el botón está suelto, continúa a la sección "mouse"
 ;si no, se mantiene indefinidamente en "mouse_no_clic" hasta que se suelte
 lectura_entrada:
-  pausar_programa 1h, 0000h
+  call  dibuja_actual
+  pausar_programa 2h, 0000h
   call  borra_actual
   inc   [pieza_curr.y]
+
+  lea ax, [pieza_curr]
+  push ax
+  call validar_lim_v
+  pop ax
+
+  cmp ax, 0h
+  jne continuar_v
+
+  dec [pieza_curr.y]
   call  dibuja_actual
+
+  lea ax, [pieza_curr]
+  push ax
+  call agregar_pieza_tab
+  pop ax
+  
+  ; Asignación de nueva de pieza
+  lea ax, [pieza_curr]
+  push ax
+  lea ax, [pieza_next]
+  push ax
+  call copiar_piezas
+  pop ax
+  pop ax
+
+  ; Creación de nueva pieza
+  call borra_next
+  crear_pieza pieza_next
+  call  dibuja_next
+
+continuar_v:
+
   lee_mouse
   cmp bx, 01h
   je  mouse
@@ -580,15 +614,17 @@ boton_x3:
 ;Aqui va la lógica de las teclas presionadas
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 teclado:
-  call borra_actual
+  inc pieza_curr.x
   lea ax, [pieza_curr]
   push ax
-  call giro_izq
+  call validar_lim_h
   pop ax
-  call dibuja_actual
+  cmp ax, 0h
+  jne continuar
+  dec pieza_curr.x
+continuar:
   limpia_teclado
   jmp lectura_entrada
-
 
 ;Si no se encontró el driver del mouse, muestra un mensaje y el usuario debe salir tecleando [enter]
 salir_enter:
@@ -1051,6 +1087,133 @@ fin_borra_bloque:
     loop loop_giro_izquierda
     ret
   endp
+
+  VALIDAR_LIM_H proc
+    mov bp, sp
+    mov di, [bp+2]
+    lea si, [di.bloques]
+
+    mov cx, 4
+  loop_validar_h:
+    mov ah, [di.x]
+    add ah, [si.x]
+
+    cmp ah, lim_derecho
+    jg fallo_validar_h
+
+    cmp ah, lim_izquierdo
+    jl fallo_validar_h
+
+    add si, size bloque
+    loop loop_validar_h
+
+    mov ax, 1h
+    mov [bp + 2], ax
+    ret
+
+  fallo_validar_h:
+    mov ax, 0h
+    mov [bp + 2], ax
+    ret
+  endp
+
+  VALIDAR_LIM_V proc
+    mov bp, sp
+    mov di, [bp+2]
+    lea si, [di.bloques]
+
+    mov cx, 4
+  loop_validar_v:
+    mov ah, [di.y]
+    add ah, [si.y]
+
+    cmp ah, lim_inferior
+    jg fallo_validar_v
+
+    add si, size bloque
+    loop loop_validar_v
+
+    mov ax, 1h
+    mov [bp + 2], ax
+    ret
+
+  fallo_validar_v:
+    mov ax, 0h
+    mov [bp + 2], ax
+    ret
+  endp
+
+  AGREGAR_PIEZA_TAB proc
+    mov bp, sp
+    mov di, [bp+2]
+    lea si, [di.bloques]
+
+    mov cx, 4
+  loop_agregar_pieza_tab:
+    xor ax, ax
+    mov al, [di.y]
+    add al, [si.y]
+
+    mov bx, lim_derecho - lim_izquierdo
+    mul bx 
+
+    xor bx, bx
+    mov bl, [di.x]
+    add bl, [si.x]
+
+    add ax, bx
+    mov dl, [di.color]
+
+    push di
+      lea di, [tablero]
+      mov [bx + di], dl
+    pop di
+
+    loop loop_agregar_pieza_tab
+
+    ret
+  endp
+
+  COPIAR_PIEZAS proc
+    mov bp, sp
+    mov di, [bp+2] ; Origen
+    mov si, [bp+4] ; Destino
+
+
+    ; Asignación del color
+    mov al, [di.color]
+    mov [si.color], al
+
+    ; Asignación de 'x'
+    mov al, [di.x]
+    mov [si.x], al
+
+    ; Asignación de 'y'
+    mov al, [di.y]
+    mov [si.y], al
+
+    ; Copia de bloques
+    lea di, [di.bloques]
+    lea si, [si.bloques]
+
+    mov cx, 4h
+
+  loop_copiar_pieza:
+    ; Asignación de 'x' (bloque)
+    mov al, [di.x]
+    mov [si.x], al
+
+    ; Asignación de 'y' (bloque)
+    mov al, [di.y]
+    mov [si.y], al
+
+    add di, size bloque
+    add si, size bloque
+    loop loop_copiar_pieza
+
+    ret
+  endp
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;FIN PROCEDIMIENTOS;;;;;;

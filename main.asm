@@ -624,14 +624,130 @@ boton_x3:
 ;Aqui va la lógica de las teclas presionadas
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 teclado:
-  inc pieza_curr.x
+  lee_teclado
+
+  cmp al, 'h'
+  je procesar_mov_izq
+  cmp al, 'l'
+  je procesar_mov_der
+  cmp al, 'j'
+  je procesar_giro_izq
+  cmp al, 'k'
+  je procesar_giro_der
+  jmp continuar
+
+procesar_mov_izq:
+  ; Trasladar pieza a la izquierda
+  dec pieza_curr.x
+
+  ; Validar que la nueva posición esté dentro del tablero
   lea ax, [pieza_curr]
   push ax
   call validar_lim_h
   pop ax
   cmp ax, 0h
+  je mov_izq_inv
+
+  ; Validar que la nueva posición no tenga bloques
+  lea ax, [pieza_curr]
+  push ax
+  call validar_tab_v
+  pop ax
+  cmp ax, 0h
   jne continuar
+
+mov_izq_inv:
+  ; Si la posición es incorrecta, revertir el movimiento
+  inc pieza_curr.x
+  jmp continuar
+
+procesar_mov_der:
+  ; Trasladar pieza a la derecha
+  inc pieza_curr.x
+
+  ; Validar que la nueva posición esté dentro del tablero
+  lea ax, [pieza_curr]
+  push ax
+  call validar_lim_h
+  pop ax
+  cmp ax, 0h
+  je mov_der_inv
+
+  ; Validar que la nueva posición no tenga bloques
+  lea ax, [pieza_curr]
+  push ax
+  call validar_tab_v
+  pop ax
+  cmp ax, 0h
+  jne continuar
+
+mov_der_inv:
+  ; Si la posición es incorrecta, revertir el movimiento
   dec pieza_curr.x
+  jmp continuar
+
+procesar_giro_izq:
+  ; Girar pieza a la izquierda
+  lea ax, [pieza_curr]
+  push ax
+  call giro_izq
+  pop ax
+
+  ; Validar que la nueva posición esté dentro del tablero
+  lea ax, [pieza_curr]
+  push ax
+  call validar_lim_h
+  pop ax
+  cmp ax, 0h
+  je giro_izq_inv
+
+  ; Validar que la nueva posición no tenga bloques
+  lea ax, [pieza_curr]
+  push ax
+  call validar_tab_v
+  pop ax
+  cmp ax, 0h
+  jne continuar
+
+giro_izq_inv:
+  ; Si la posición es incorrecta, revertir el movimiento
+  lea ax, [pieza_curr]
+  push ax
+  call giro_der
+  pop ax
+  jmp continuar
+
+procesar_giro_der:
+  ; Girar pieza a la derecha
+  lea ax, [pieza_curr]
+  push ax
+  call giro_der
+  pop ax
+
+  ; Validar que la nueva posición esté dentro del tablero
+  lea ax, [pieza_curr]
+  push ax
+  call validar_lim_h
+  pop ax
+  cmp ax, 0h
+  je giro_der_inv
+
+  ; Validar que la nueva posición no tenga bloques
+  lea ax, [pieza_curr]
+  push ax
+  call validar_tab_v
+  pop ax
+  cmp ax, 0h
+  jne continuar
+
+giro_der_inv:
+  ; Si la posición es incorrecta, revertir el movimiento
+  lea ax, [pieza_curr]
+  push ax
+  call giro_izq
+  pop ax
+  jmp continuar
+
 continuar:
   limpia_teclado
   jmp lectura_entrada
@@ -1152,6 +1268,7 @@ fin_borra_bloque:
     mov [bp + 2], ax
     ret
   endp
+
 
   VALIDAR_TAB_V proc
     mov bp, sp

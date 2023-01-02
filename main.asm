@@ -160,7 +160,7 @@ speed             dw    4
 next              db    ?
 
 ; Variable para representar el área de juego
-tablero           db    (lim_derecho - lim_izquierdo)*(lim_inferior - lim_superior) dup(5h)
+tablero           db    lim_derecho*lim_inferior dup(-1)
 
 ; Variables auxiliares para generar números pseudo-aleatorios
 rand_seq          db    max_rand_index dup(?)
@@ -469,8 +469,8 @@ loop_elegir_color:
 
   generar_aleatorio 4h
   lea bx, [pieza]
-  mov cx, dx
 
+  mov cx, dx
 loop_girar_generada:
   push cx
   push bx
@@ -518,6 +518,7 @@ imprime_ui:
 ;si no, se mantiene indefinidamente en "mouse_no_clic" hasta que se suelte
 lectura_entrada:
   call  dibuja_actual
+
   pausar_programa 2h, 0000h
   call  borra_actual
   inc   [pieza_curr.y]
@@ -528,8 +529,17 @@ lectura_entrada:
   pop ax
 
   cmp ax, 0h
-  jne continuar_v
+  je revertir_avance_v ; Si hay choque
 
+  lea ax, [pieza_curr]
+  push ax
+  call validar_tab_v
+  pop ax
+
+  cmp ax, 0h
+  jne continuar_v ; Si no hay choque
+
+revertir_avance_v:
   dec [pieza_curr.y]
   call  dibuja_actual
 
@@ -539,6 +549,7 @@ lectura_entrada:
   pop ax
   
   ; Asignación de nueva de pieza
+asignar_nueva_pieza:
   lea ax, [pieza_curr]
   push ax
   lea ax, [pieza_next]
@@ -553,7 +564,6 @@ lectura_entrada:
   call  dibuja_next
 
 continuar_v:
-
   lee_mouse
   cmp bx, 01h
   je  mouse
@@ -1143,6 +1153,55 @@ fin_borra_bloque:
     ret
   endp
 
+  VALIDAR_TAB_V proc
+    mov bp, sp
+    mov di, [bp+2]
+    lea si, [di.bloques]
+
+    mov cx, 4
+  loop_validar_tab_v:
+    mov al, [di.y]
+    add al, [si.y]
+    dec al
+
+    cmp al, 0h
+    jl continuar_validar_tab_v
+
+    mov bl, lim_derecho
+    mul bl 
+
+    xor bx, bx
+    mov bl, [di.x]
+    add bl, [si.x]
+
+    add bx, ax
+    dec bx
+
+    push di
+
+    mov di, bx
+    lea bx, [tablero]
+    mov al, [bx + di]
+
+    pop di
+
+    cmp al, -1
+    jne fallo_validar_tab_v
+
+continuar_validar_tab_v:
+    add si, size bloque
+    loop loop_validar_tab_v
+
+    mov ax, 1h
+    mov [bp + 2], ax
+    ret
+
+  fallo_validar_tab_v:
+    mov ax, 0h
+    mov [bp + 2], ax
+    ret
+  endp
+
   AGREGAR_PIEZA_TAB proc
     mov bp, sp
     mov di, [bp+2]
@@ -1150,25 +1209,33 @@ fin_borra_bloque:
 
     mov cx, 4
   loop_agregar_pieza_tab:
-    xor ax, ax
     mov al, [di.y]
     add al, [si.y]
+    dec al
 
-    mov bx, lim_derecho - lim_izquierdo
-    mul bx 
+    cmp al, 0h
+    jl continuar_agregar_pieza_tab
+
+    mov bl, lim_derecho
+    mul bl 
 
     xor bx, bx
     mov bl, [di.x]
     add bl, [si.x]
 
-    add ax, bx
+    add bx, ax
+    dec bx
+
     mov dl, [di.color]
 
     push di
-      lea di, [tablero]
+      mov di, bx
+      lea bx, [tablero]
       mov [bx + di], dl
     pop di
 
+continuar_agregar_pieza_tab:
+    add si, size bloque
     loop loop_agregar_pieza_tab
 
     ret

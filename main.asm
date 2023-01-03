@@ -161,6 +161,7 @@ next              db    ?
 
 ; Variable para representar el área de juego
 tablero           db    lim_derecho*lim_inferior dup(-1)
+tab_aux           db    0
 
 ; Variables auxiliares para generar números pseudo-aleatorios
 rand_seq          db    max_rand_index dup(?)
@@ -462,8 +463,10 @@ loop_crear_bloques:
 
   ; Se genera un color aleatorio
 loop_elegir_color:
-  generar_aleatorio 7h
+  generar_aleatorio 0Fh
   cmp dl, cGrisOscuro
+  je loop_elegir_color
+  cmp dl, cNegro
   je loop_elegir_color
   mov [pieza.color], dl
 
@@ -572,9 +575,12 @@ imprime_ui:
 ;Si el botón está suelto, continúa a la sección "mouse"
 ;si no, se mantiene indefinidamente en "mouse_no_clic" hasta que se suelte
 lectura_entrada:
-  call  dibuja_actual
   call  eliminar_lineas
   call  dibujar_lineas_marcadas
+  call  limpiar_lineas
+  pausar_programa 1h, 0000h
+  call  dibujar_tab
+  call  dibuja_actual
 
   pausar_programa 2h, 0000h
   call  borra_actual
@@ -1434,16 +1440,16 @@ loop_recorrer_linea:
     loop loop_recorrer_linea
 
     mov cx, lim_derecho
+    inc lines_score
 loop_marcar_linea:
     mov col_aux, cl
     establecer_tab_pos ren_aux, col_aux, 0FEh
-    ;posiciona_cursor ren_aux, col_aux
-    ;imprime_caracter_color ' ', cNegro, bgBlanco
 loop loop_marcar_linea
 
 recorrer_siguiente_linea:
     pop cx
     loop loop_recorrer_lineas
+    call imprime_lines
     ret
   endp
 
@@ -1474,9 +1480,70 @@ dibujar_siguiente_linea:
     ret
   endp
 
-  ;; TODO: Implementar
-  LIMPIAR_LINEAS proc
+  DIBUJAR_TAB proc
+    mov cx, lim_inferior
+loop_dibujar_tab_v:
+    mov ren_aux, cl
+    push cx
 
+    mov cx, lim_derecho
+loop_dibujar_tab_h:
+    mov col_aux, cl
+    obtener_tab_pos ren_aux, col_aux
+
+    push cx
+    cmp al, 0FFh
+    je imprime_vacio
+    mov tab_aux, al
+    posiciona_cursor ren_aux, col_aux
+    imprime_caracter_color 254, tab_aux, bgGrisOscuro
+    jmp continuar_imprimir
+imprime_vacio:
+    posiciona_cursor ren_aux, col_aux
+    imprime_caracter_color ' ', cNegro, bgNegro
+continuar_imprimir:
+    pop cx
+
+    loop loop_dibujar_tab_h
+
+    pop cx
+    loop loop_dibujar_tab_v
+    ret
+  endp
+
+  LIMPIAR_LINEAS proc
+    lea bx, [tablero]
+
+    mov cx, 4h
+loop_lineas_mayor:
+    push cx
+    mov cx, lim_derecho * lim_inferior - 1
+loop_limpiar_lineas:
+    cmp cx, lim_derecho
+    jl continuar_limpiar_lineas
+    mov di, cx
+    mov al, [bx+di]
+    cmp al, 0FEh
+    jne continuar_limpiar_lineas
+    mov ah, [bx+di-lim_derecho]
+    mov [bx+di], ah
+    mov [bx+di-lim_derecho], al
+continuar_limpiar_lineas:
+    loop loop_limpiar_lineas
+    pop cx
+    loop loop_lineas_mayor
+
+    mov di, 0h    
+eliminar_marcas:
+    mov al, [bx+di]
+    cmp al, 0FEh
+    jne terminar_limpia
+    mov al, 0FFh
+    mov [bx+di], al
+    inc di
+    jmp eliminar_marcas
+
+terminar_limpia:
     ret
   endp
 

@@ -488,6 +488,61 @@ pausar_programa macro t1, t2
   int   15h
 endm
 
+obtener_tab_pos macro ren, col
+  push bx
+  push di
+
+  mov al, ren
+  dec al
+
+  mov ah, lim_derecho
+  mul ah 
+
+  xor bx, bx
+  mov bl, col
+
+  add ax, bx
+  dec ax
+  
+  lea bx, [tablero]
+  mov di, ax
+
+  mov al, [bx+di]
+
+  pop di
+  pop bx
+endm
+
+establecer_tab_pos macro ren, col, valor
+  push ax
+  push bx
+  push di
+  push dx
+
+  mov al, ren
+  dec al
+
+  mov ah, lim_derecho
+  mul ah 
+
+  xor bx, bx
+  mov bl, col
+
+  add ax, bx
+  dec ax
+  
+  lea bx, [tablero]
+  mov di, ax
+
+  mov dl, valor
+  mov [bx+di], dl
+
+  pop dx
+  pop di
+  pop bx
+  pop ax
+endm
+
 ;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;Fin Macros;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;
@@ -518,6 +573,8 @@ imprime_ui:
 ;si no, se mantiene indefinidamente en "mouse_no_clic" hasta que se suelte
 lectura_entrada:
   call  dibuja_actual
+  call  eliminar_lineas
+  call  dibujar_lineas_marcadas
 
   pausar_programa 2h, 0000h
   call  borra_actual
@@ -1358,11 +1415,75 @@ continuar_agregar_pieza_tab:
     ret
   endp
 
+  ELIMINAR_LINEAS proc
+
+    mov cx, lim_inferior
+loop_recorrer_lineas:
+    mov ren_aux, cl
+    push cx
+
+    mov cx, lim_derecho
+loop_recorrer_linea:
+    mov col_aux, cl
+
+    obtener_tab_pos ren_aux, col_aux
+
+    cmp al, 0FFh
+    je recorrer_siguiente_linea
+
+    loop loop_recorrer_linea
+
+    mov cx, lim_derecho
+loop_marcar_linea:
+    mov col_aux, cl
+    establecer_tab_pos ren_aux, col_aux, 0FEh
+    ;posiciona_cursor ren_aux, col_aux
+    ;imprime_caracter_color ' ', cNegro, bgBlanco
+loop loop_marcar_linea
+
+recorrer_siguiente_linea:
+    pop cx
+    loop loop_recorrer_lineas
+    ret
+  endp
+
+  DIBUJAR_LINEAS_MARCADAS proc
+    mov cx, lim_inferior
+loop_dibujar_linea_v:
+    mov ren_aux, cl
+    push cx
+
+    mov cx, lim_derecho
+loop_dibujar_linea_h:
+    mov col_aux, cl
+    obtener_tab_pos ren_aux, col_aux
+
+    cmp al, 0FEh
+    jne dibujar_siguiente_linea
+
+    push cx
+    posiciona_cursor ren_aux, col_aux
+    imprime_caracter_color ' ', cNegro, bgBlanco
+    pop cx
+
+    loop loop_dibujar_linea_h
+
+dibujar_siguiente_linea:
+    pop cx
+    loop loop_dibujar_linea_v
+    ret
+  endp
+
+  ;; TODO: Implementar
+  LIMPIAR_LINEAS proc
+
+    ret
+  endp
+
   COPIAR_PIEZAS proc
     mov bp, sp
     mov di, [bp+2] ; Origen
     mov si, [bp+4] ; Destino
-
 
     ; Asignación del color
     mov al, [di.color]
@@ -1397,7 +1518,6 @@ continuar_agregar_pieza_tab:
 
     ret
   endp
-
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;FIN PROCEDIMIENTOS;;;;;;

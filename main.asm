@@ -170,6 +170,7 @@ rand_index        dw    0
 ; Almacenamiento de información de las piezas
 pieza_curr        pieza  ? ; Pieza actual
 pieza_next        pieza  ? ; Pieza siguiente
+pieza_sombra      pieza  ? ; Pieza que indica dónde caerá "pieza_curr"
 
 ; Definición de la estructura de cada una de las piezas (y1,x1),(y2,x2)...(yn,xn)
 i_shape      db    0, 0,-1, 0, 1, 0, 2, 0
@@ -562,7 +563,7 @@ inicio:          ;etiqueta inicio
   mov ax, 0900h    ;opcion 9 para interrupcion 21h
   int 21h        ;interrupcion 21h. Imprime cadena.
   jmp salir_enter    ;salta a 'salir_enter'
-  ;jmp mouse_no_clic
+
 imprime_ui:
   clear           ;limpia pantalla
   oculta_cursor_teclado  ;oculta cursor del mouse
@@ -578,11 +579,13 @@ lectura_entrada:
   call  eliminar_lineas
   call  dibujar_lineas_marcadas
   call  limpiar_lineas
-  pausar_programa 1h, 0000h
+  pausar_programa 0h, 1000h
+  call calcular_sombra
   call  dibujar_tab
+  call dibuja_sombra
   call  dibuja_actual
 
-  pausar_programa 2h, 0000h
+  pausar_programa 2h, 8000h
   call  borra_actual
   inc   [pieza_curr.y]
 
@@ -1179,6 +1182,18 @@ fin_dibujar_bloque:
     ret
   endp
 
+  DIBUJA_SOMBRA proc
+    lea si, pieza_sombra
+    lea di, [pieza_sombra.bloques]
+    mov al, [pieza_sombra.x]
+    mov ah, [pieza_sombra.y]
+    mov [col_aux], al
+    mov [ren_aux], ah
+
+    call DIBUJA_PIEZA
+    ret
+  endp
+
   BORRA_ACTUAL proc
     lea si, pieza_curr
     lea di, [pieza_curr.bloques]
@@ -1583,6 +1598,34 @@ terminar_limpia:
     add si, size bloque
     loop loop_copiar_pieza
 
+    ret
+  endp
+
+  CALCULAR_SOMBRA proc
+    lea ax, [pieza_sombra]; Destino
+    push ax
+    lea ax, [pieza_curr]; Origen
+    push ax
+
+    call copiar_piezas
+
+    pop ax
+    pop ax
+
+    mov [pieza_sombra.color], cGrisOscuro
+
+loop_recorrer_sombra:
+    lea ax, [pieza_sombra]
+    push ax
+    call validar_tab_v
+    pop ax
+    cmp ax, 0h
+    je terminar_recorrer_sombra
+    inc [pieza_sombra.y]
+    loop loop_recorrer_sombra
+
+terminar_recorrer_sombra:
+    dec [pieza_sombra.y]
     ret
   endp
 

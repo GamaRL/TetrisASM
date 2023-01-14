@@ -83,6 +83,12 @@ lim_inferior      equ    23
 lim_izquierdo     equ    1
 lim_derecho       equ    15
 
+;Indica cuántas veces se lee el teclado mientras la pieza avanza un cuadro
+update_rate       equ   3
+
+;Indica el número de líneas que se tienen que completar para subir un nivel
+lines_per_level   equ   4
+
 ;Valores de referencia para la posición inicial de la primera pieza
 ini_columna       equ   lim_derecho/2
 ini_renglon       equ   -1
@@ -99,7 +105,6 @@ level_ren         equ   12
 level_col         equ   lim_derecho+7
 lines_ren         equ   14
 lines_col         equ   lim_derecho+7
-update_rate       equ   3
 
 ;Botón STOP
 stop_col          equ   lim_derecho+15
@@ -157,8 +162,9 @@ finNextStr        db    ""
 blank             db    "     "
 lines_score       dw    0
 hiscore           dw    0
-speed             dw    4
-update_aux        dw    update_rate
+wait_time         dw    ?
+level             dw    1
+update_aux        dw    ?
 
 ; Variable para representar el área de juego
 tablero           db    lim_derecho*lim_inferior dup(-1)
@@ -589,13 +595,14 @@ lectura_entrada:
   call  limpiar_lineas
   pausar_programa 1h, 0000h
   call  dibujar_tab
+  call actualizar_level
 
 no_eliminar_lineas:
   call calcular_sombra
   call dibuja_sombra
   call  dibuja_actual
 
-  pausar_programa 1h, 0000h
+  pausar_programa 0h, [wait_time]
   cmp [update_aux], 0
   jg continuar_v
 
@@ -1050,7 +1057,7 @@ DIBUJA_UI proc
   IMPRIME_LEVEL proc
     mov [ren_aux],level_ren
     mov [col_aux],level_col+20
-    mov bx,[lines_score]
+    mov bx, [level]
     call IMPRIME_BX
     ret
   endp
@@ -1111,6 +1118,8 @@ DIBUJA_UI proc
   ;Inicializa variables del juego
   DATOS_INICIALES proc
     mov [lines_score],0
+    mov [update_aux], update_rate
+    mov [wait_time], 0FFFFh
     crear_pieza pieza_curr
     crear_pieza pieza_next
     ;agregar otras variables necesarias
@@ -1753,6 +1762,18 @@ terminar_recorrer_sombra:
       mov [pieza_curr.color], al
       ret
     endp
+  endp
+
+  ACTUALIZAR_LEVEL proc
+    mov ax, lines_score
+    mov bl, lines_per_level
+    div bl
+
+    xor ah, ah
+    mov level, ax
+    sub wait_time, 5555h
+    call imprime_level
+    ret
   endp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

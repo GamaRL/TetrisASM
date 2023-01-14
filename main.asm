@@ -99,6 +99,7 @@ level_ren         equ   12
 level_col         equ   lim_derecho+7
 lines_ren         equ   14
 lines_col         equ   lim_derecho+7
+update_rate       equ   3
 
 ;Botón STOP
 stop_col          equ   lim_derecho+15
@@ -157,7 +158,7 @@ blank             db    "     "
 lines_score       dw    0
 hiscore           dw    0
 speed             dw    4
-next              db    ?
+update_aux        dw    update_rate
 
 ; Variable para representar el área de juego
 tablero           db    lim_derecho*lim_inferior dup(-1)
@@ -594,7 +595,10 @@ no_eliminar_lineas:
   call dibuja_sombra
   call  dibuja_actual
 
-  pausar_programa 5h, 0000h
+  pausar_programa 1h, 0000h
+  cmp [update_aux], 0
+  jg continuar_v
+
   call  borra_actual
   inc   [pieza_curr.y]
 
@@ -610,6 +614,7 @@ no_eliminar_lineas:
   push ax
   call validar_tab_v
   pop ax
+  mov [update_aux], update_rate+1
 
   cmp ax, 0h
   jne continuar_v ; Si no hay choque
@@ -639,6 +644,7 @@ asignar_nueva_pieza:
   call  dibuja_next
 
 continuar_v:
+  dec [update_aux]
   lee_mouse
   cmp bx, 01h
   je  mouse
@@ -857,6 +863,7 @@ continuar_cambio_pieza:
 
 procesar_bajar_rapido:
  call bajar_pieza
+ mov [update_aux], 0
 
 continuar:
   limpia_teclado
@@ -1512,7 +1519,7 @@ recorrer_siguiente_linea:
     pop cx
     loop loop_recorrer_lineas
     call imprime_lines
-    mov ah, 0
+    mov ax, 0
     mov al, [conta]
     mov [bp+2], ax
     ret

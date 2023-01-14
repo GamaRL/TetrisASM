@@ -171,6 +171,7 @@ rand_index        dw    0
 pieza_curr        pieza  ? ; Pieza actual
 pieza_next        pieza  ? ; Pieza siguiente
 pieza_sombra      pieza  ? ; Pieza que indica dónde caerá "pieza_curr"
+pieza_aux         pieza  ? ; Pieza que se usa para operaciones auxiliares
 
 ; Definición de la estructura de cada una de las piezas (y1,x1),(y2,x2)...(yn,xn)
 i_shape      db    0, 0,-1, 0, 1, 0, 2, 0
@@ -576,16 +577,24 @@ imprime_ui:
 ;Si el botón está suelto, continúa a la sección "mouse"
 ;si no, se mantiene indefinidamente en "mouse_no_clic" hasta que se suelte
 lectura_entrada:
+  mov ax, 0h
+  push ax
   call  eliminar_lineas
+  pop ax
+
+  cmp ax, 0h
+  je no_eliminar_lineas
   call  dibujar_lineas_marcadas
   call  limpiar_lineas
-  pausar_programa 0h, 1000h
-  call calcular_sombra
+  pausar_programa 1h, 0000h
   call  dibujar_tab
+
+no_eliminar_lineas:
+  call calcular_sombra
   call dibuja_sombra
   call  dibuja_actual
 
-  pausar_programa 2h, 8000h
+  pausar_programa 5h, 0000h
   call  borra_actual
   inc   [pieza_curr.y]
 
@@ -700,6 +709,10 @@ teclado:
   je procesar_giro_izq
   cmp al, 'k'
   je procesar_giro_der
+  cmp al, 'q'
+  je procesar_cambio_pieza
+  cmp al, ' '
+  je procesar_bajar_rapido
   jmp continuar
 
 procesar_mov_izq:
@@ -813,6 +826,37 @@ giro_der_inv:
   call giro_izq
   pop ax
   jmp continuar
+
+procesar_cambio_pieza:
+  call borra_next
+  call borra_actual
+  call cambiar_next_curr
+
+  ; Validar que la nueva posición esté dentro del tablero
+  lea ax, [pieza_curr]
+  push ax
+  call validar_lim_h
+  pop ax
+  cmp ax, 0h
+  je procesar_cambio_pieza_inv
+
+  ; Validar que la nueva posición no tenga bloques
+  lea ax, [pieza_curr]
+  push ax
+  call validar_tab_v
+  pop ax
+  cmp ax, 0h
+  jne continuar_cambio_pieza
+
+procesar_cambio_pieza_inv:
+  call cambiar_next_curr
+
+continuar_cambio_pieza:
+  call dibuja_next
+  jmp continuar
+
+procesar_bajar_rapido:
+ call bajar_pieza
 
 continuar:
   limpia_teclado
@@ -1437,6 +1481,8 @@ continuar_agregar_pieza_tab:
   endp
 
   ELIMINAR_LINEAS proc
+    mov bp, sp
+    mov [conta], 0
 
     mov cx, lim_inferior
 loop_recorrer_lineas:
@@ -1456,6 +1502,7 @@ loop_recorrer_linea:
 
     mov cx, lim_derecho
     inc lines_score
+    inc [conta]
 loop_marcar_linea:
     mov col_aux, cl
     establecer_tab_pos ren_aux, col_aux, 0FEh
@@ -1465,6 +1512,9 @@ recorrer_siguiente_linea:
     pop cx
     loop loop_recorrer_lineas
     call imprime_lines
+    mov ah, 0
+    mov al, [conta]
+    mov [bp+2], ax
     ret
   endp
 
@@ -1621,12 +1671,81 @@ loop_recorrer_sombra:
     pop ax
     cmp ax, 0h
     je terminar_recorrer_sombra
+
+    lea ax, [pieza_sombra]
+    push ax
+    call validar_lim_v
+    pop ax
+    cmp ax, 0h
+    je terminar_recorrer_sombra
+
     inc [pieza_sombra.y]
     loop loop_recorrer_sombra
 
 terminar_recorrer_sombra:
     dec [pieza_sombra.y]
     ret
+  endp
+
+  CAMBIAR_NEXT_CURR proc
+    ; aux = next
+    lea ax, [pieza_aux]
+    push ax
+    lea ax, [pieza_next]
+    push ax
+    call copiar_piezas
+    pop ax
+    pop ax
+
+    ; next = curr
+    lea ax, [pieza_next]
+    push ax
+    lea ax, [pieza_curr]
+    push ax
+    call copiar_piezas
+    pop ax
+    pop ax
+
+    ; curr = aux
+    lea ax, [pieza_curr]
+    push ax
+    lea ax, [pieza_aux]
+    push ax
+    call copiar_piezas
+    pop ax
+    pop ax
+
+    ; Intercambio de posiciones
+    mov al, [pieza_curr.x]
+    mov ah, [pieza_curr.y]
+
+    mov bl, [pieza_next.x]
+    mov bh, [pieza_next.y]
+
+    mov [pieza_next.x], al
+    mov [pieza_next.y], ah
+
+    mov [pieza_curr.x], bl
+    mov [pieza_curr.y], bh
+
+    ret
+
+    BAJAR_PIEZA proc
+      mov al, [pieza_curr.color]
+      mov tab_aux, al
+
+      lea ax, [pieza_curr]
+      push ax
+      lea ax, [pieza_sombra]
+      push ax
+      call copiar_piezas
+      pop ax
+      pop ax
+
+      mov al, tab_aux
+      mov [pieza_curr.color], al
+      ret
+    endp
   endp
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -81,10 +81,10 @@ bgBlanco          equ   0F0h
 lim_superior      equ    1
 lim_inferior      equ    23
 lim_izquierdo     equ    1
-lim_derecho       equ    15
+lim_derecho       equ    10
 
 ;Indica cuántas veces se lee el teclado mientras la pieza avanza un cuadro
-update_rate       equ   3
+update_rate       equ   5
 
 ;Indica el número de líneas que se tienen que completar para subir un nivel
 lines_per_level   equ   4
@@ -214,6 +214,11 @@ ocho              db     8
 
 ; Mensaje para cuando el driver del mouse no esté disponible
 no_mouse          db     'No se encuentra driver de mouse. Presione [enter] para salir$'
+
+; Nombre del archivo de puntajes
+scores_filename   db     'scores.txt', 0
+scores_handle     dw     0
+score_read        dw     ?
 
 ;////////////////////////////////////////////////////
 
@@ -584,6 +589,11 @@ imprime_ui:
 ;Si el botón está suelto, continúa a la sección "mouse"
 ;si no, se mantiene indefinidamente en "mouse_no_clic" hasta que se suelte
 lectura_entrada:
+  cmp [status], paro
+  je mouse
+  cmp [status], pausa
+  je mouse
+
   mov ax, 0h
   push ax
   call  eliminar_lineas
@@ -627,6 +637,12 @@ no_eliminar_lineas:
   jne continuar_v ; Si no hay choque
 
 revertir_avance_v:
+  call detectar_final
+  cmp ax, 1
+  jne continuar_revertir_avance_v
+  mov [status], paro
+
+continuar_revertir_avance_v:
   dec [pieza_curr.y]
   call  dibuja_actual
 
@@ -689,6 +705,13 @@ conversion_mouse:
   ;se va a revisar si fue dentro del boton [X]
   cmp dx,0
   je boton_x
+
+  cmp dx,lim_inferior-4
+  je boton_play
+  cmp dx,lim_inferior-3
+  je boton_play
+  cmp dx,lim_inferior-2
+  je boton_play
   jmp lectura_entrada
 boton_x:
   jmp boton_x1
@@ -705,8 +728,52 @@ boton_x2:
 boton_x3:
   ;Se cumplieron todas las condiciones
   jmp salir
-
   jmp lectura_entrada
+
+boton_play:
+  jmp boton_play1
+boton_play1:
+  cmp cx,play_izq
+  jge boton_play2
+  jmp boton_pause
+boton_play2:
+  cmp cx,play_der
+  jle boton_play3
+  jmp boton_pause
+boton_play3:
+  ;Se cumplieron todas las condiciones
+  mov [status], activo
+  jmp lectura_entrada
+
+boton_pause:
+  jmp boton_pause1
+boton_pause1:
+  cmp cx,pause_izq
+  jge boton_pause2
+  jmp boton_stop
+boton_pause2:
+  cmp cx,pause_der
+  jle boton_pause3
+  jmp boton_stop
+boton_pause3:
+  ;Se cumplieron todas las condiciones
+  mov [status], pausa
+  jmp lectura_entrada
+
+boton_stop:
+  jmp boton_stop1
+boton_stop1:
+  cmp cx,stop_izq
+  jge boton_stop2
+  jmp lectura_entrada
+boton_stop2:
+  cmp cx,stop_der
+  jle boton_stop3
+  jmp lectura_entrada
+boton_stop3:
+  ;Se cumplieron todas las condiciones
+  mov [status], paro
+  jmp imprime_ui
   
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;Aqui va la lógica de las teclas presionadas
@@ -1120,8 +1187,10 @@ DIBUJA_UI proc
     mov [lines_score],0
     mov [update_aux], update_rate
     mov [wait_time], 0FFFFh
+    mov [level], 1h
     crear_pieza pieza_curr
     crear_pieza pieza_next
+    call leer_highscore
     ;agregar otras variables necesarias
     ret
   endp
@@ -1771,8 +1840,87 @@ terminar_recorrer_sombra:
 
     xor ah, ah
     mov level, ax
+    inc [level]
+
+    mov ax, [level]
+    cmp ax, [hiscore]
+    jle continuar_actualizar_level
+    mov hiscore, ax
+    call escribir_highscore
+
+  continuar_actualizar_level:
     sub wait_time, 5555h
+    ;mov ax, 0FFFFh
+    ;mov bx, [level]
+    ;div bl
+    ;xor ah, ah
+    ;mov [wait_time], ax
     call imprime_level
+    ret
+  endp
+
+  DETECTAR_FINAL proc
+    lea di, [pieza_curr.bloques]
+
+    mov cx, 4
+
+    loop_detectar_final:
+
+      mov al, [pieza_curr.y]
+      mov bl, [di.y]
+      add al, bl
+      mov [ren_aux], al
+
+      cmp [ren_aux], 0
+      jg continuar_detectar_final
+      mov ax, 1
+      ret
+
+      continuar_detectar_final:
+      add di, size BLOQUE
+    loop loop_detectar_final
+
+    mov ax, 0
+    ret
+  endp
+
+  LEER_HIGHSCORE proc
+    mov ah,3Dh
+		mov al,0   ; 0 - for reading. 1 - for writing. 2 - both
+		mov dx, offset scores_filename  ; make a pointer to the filename
+		int 21h   ; call DOS
+		mov scores_handle,ax
+
+    mov ah,3Fh
+		mov cx,2   ; I will assume ELMO.TXT has atleast 4 bytes in it. CX is how many bytes to read.
+		mov dx,offset score_read  ; DOS Functions like DX having pointers for some reason.
+		mov bx,scores_handle    ; BX needs the file handle.
+		int 21h   ; call DOS 
+
+    mov ax, [score_read]
+    mov [hiscore], ax
+
+    mov ah, 3Eh
+    mov bx, scores_handle
+    ret
+  endp
+
+  ESCRIBIR_HIGHSCORE proc
+    mov ah,3Dh
+		mov al,1   ; 0 - for reading. 1 - for writing. 2 - both
+		mov dx, offset scores_filename  ; make a pointer to the filename
+		int 21h   ; call DOS
+		mov scores_handle,ax
+
+    mov ah,40h
+		mov bx,scores_handle ; pointer to number of bytes read from user.
+		mov cx,2   ; get the contents of the byte at the pointer.
+		; note that even though CX takes the length, CL physically IS the low byte of CX.
+		mov dx,offset level  ; pointer to the actual data in DX.
+		int 21h   ; call DOS
+
+    mov ah, 3Eh
+    mov bx, scores_handle
     ret
   endp
 

@@ -1847,6 +1847,7 @@ terminar_recorrer_sombra:
     jle continuar_actualizar_level
     mov hiscore, ax
     call escribir_highscore
+    call imprime_hiscore
 
   continuar_actualizar_level:
     sub wait_time, 5555h
@@ -1885,42 +1886,49 @@ terminar_recorrer_sombra:
   endp
 
   LEER_HIGHSCORE proc
+    ; Se abre el archivo
     mov ah,3Dh
-		mov al,0   ; 0 - for reading. 1 - for writing. 2 - both
-		mov dx, offset scores_filename  ; make a pointer to the filename
-		int 21h   ; call DOS
-		mov scores_handle,ax
+		mov al,0   ; 0 - para lectura
+		lea dx,[scores_filename]  ; puntero al nombre del archivo
+		int 21h
+		mov [scores_handle],ax
 
+    ; Se lee contenido del archivo
     mov ah,3Fh
-		mov cx,2   ; I will assume ELMO.TXT has atleast 4 bytes in it. CX is how many bytes to read.
-		mov dx,offset score_read  ; DOS Functions like DX having pointers for some reason.
-		mov bx,scores_handle    ; BX needs the file handle.
+		mov cx,2   ; Se leen 2 [bytes]
+		lea dx,[score_read]
+		mov bx,[scores_handle]
 		int 21h   ; call DOS 
 
     mov ax, [score_read]
     mov [hiscore], ax
 
-    mov ah, 3Eh
-    mov bx, scores_handle
+    ; Se cierra el archivo
+    mov ah,3Eh
+    mov bx,[scores_handle]
+		int 21h   ; call DOS
     ret
   endp
 
   ESCRIBIR_HIGHSCORE proc
+    ; Se abre el archivo
     mov ah,3Dh
-		mov al,1   ; 0 - for reading. 1 - for writing. 2 - both
-		mov dx, offset scores_filename  ; make a pointer to the filename
-		int 21h   ; call DOS
-		mov scores_handle,ax
+		mov al,1   ; 1 - para escritura
+		lea dx,[scores_filename]  ; apuntador al nombre del archivo
+		int 21h
+		mov [scores_handle],ax
 
+    ; Se escribe el contenido
     mov ah,40h
-		mov bx,scores_handle ; pointer to number of bytes read from user.
-		mov cx,2   ; get the contents of the byte at the pointer.
-		; note that even though CX takes the length, CL physically IS the low byte of CX.
-		mov dx,offset level  ; pointer to the actual data in DX.
-		int 21h   ; call DOS
+		mov bx,[scores_handle] ; pointer to number of bytes read from user.
+		mov cx,2   ; Se escriben 2 [bytes]
+		lea dx, [hiscore]
+		int 21h
 
-    mov ah, 3Eh
-    mov bx, scores_handle
+    ; Se cierra el archivo
+    mov ah,3Eh
+    mov bx,[scores_handle]
+		int 21h
     ret
   endp
 

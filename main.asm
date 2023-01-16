@@ -96,7 +96,7 @@ ini_renglon       equ   -1
 ;Valores para la posición de los controles e indicadores dentro del juego
 ;Next
 next_col          equ    lim_derecho+7
-next_ren          equ    4
+next_ren          equ    6
 
 ;Data
 hiscore_ren       equ   10
@@ -105,6 +105,8 @@ level_ren         equ   12
 level_col         equ   lim_derecho+7
 lines_ren         equ   14
 lines_col         equ   lim_derecho+7
+perdiste_ren      equ   14
+perdiste_col      equ   (lim_derecho+lim_izquierdo)/2-(finPerdisteStr-perdisteStr)/2+1
 
 ;Botón STOP
 stop_col          equ   lim_derecho+15
@@ -159,6 +161,8 @@ hiscoreStr        db    "HI-SCORE"
 finHiscoreStr     db    ""
 nextStr           db    "NEXT"
 finNextStr        db    ""
+perdisteStr       db    "PERDISTE"
+finPerdisteStr    db    ""
 blank             db    "     "
 lines_score       dw    0
 hiscore           dw    0
@@ -643,6 +647,7 @@ revertir_avance_v:
   cmp ax, 1
   jne continuar_revertir_avance_v
   mov [status], paro
+  call IMPRIME_PERDISTE
 
 continuar_revertir_avance_v:
   dec [pieza_curr.y]
@@ -1079,6 +1084,13 @@ DIBUJA_UI proc
     ret
   endp
 
+  IMPRIME_PERDISTE proc
+    ;Imprime cadena "PERDISTE"
+    posiciona_cursor perdiste_ren,perdiste_col
+    imprime_cadena_color perdisteStr,finPerdisteStr-perdisteStr,cRojo,bgBlanco
+    ret
+  endp
+
   IMPRIME_BOTONES proc
     ;Botón STOP
     mov [boton_caracter],219d
@@ -1181,7 +1193,6 @@ DIBUJA_UI proc
     call IMPRIME_SCORES
     call DIBUJA_NEXT
     call DIBUJA_ACTUAL
-    ;implementar
     ret
   endp
 
@@ -1194,6 +1205,7 @@ DIBUJA_UI proc
     crear_pieza pieza_curr
     crear_pieza pieza_next
     call leer_highscore
+    call inicializar_tab
     ;agregar otras variables necesarias
     ret
   endp
@@ -1853,7 +1865,7 @@ terminar_recorrer_sombra:
     div bl
 
     xor ah, ah
-    mov level, ax
+    mov [level], ax
     inc [level]
 
     mov ax, [level]
@@ -1938,6 +1950,18 @@ terminar_recorrer_sombra:
     mov ah,3Eh
     mov bx,[scores_handle]
 		int 21h
+    ret
+  endp
+
+  INICIALIZAR_TAB proc
+    lea di, [tablero]
+
+    mov al, 0FFh
+    mov cx, lim_derecho * lim_inferior
+    loop_inicializar_tab:
+      mov [di], al
+      add di, 1
+    loop loop_inicializar_tab
     ret
   endp
 

@@ -578,11 +578,11 @@ inicio:          ;etiqueta inicio
   jmp salir_enter    ;salta a 'salir_enter'
 
 imprime_ui:
-  clear           ;limpia pantalla
-  oculta_cursor_teclado  ;oculta cursor del mouse
-  apaga_cursor_parpadeo   ;Deshabilita parpadeo del cursor
-  call DIBUJA_UI       ;procedimiento que dibuja marco de la interfaz de usuario
-  muestra_cursor_mouse   ;hace visible el cursor del mouse
+  clear                 ;limpia pantalla
+  oculta_cursor_teclado ;oculta cursor del mouse
+  apaga_cursor_parpadeo ;Deshabilita parpadeo del cursor
+  call DIBUJA_UI        ;procedimiento que dibuja marco de la interfaz de usuario
+  muestra_cursor_mouse  ;hace visible el cursor del mouse
   posiciona_cursor_mouse 320d,16d  ;establece la posición del mouse
 
 ;Revisar que el boton izquierdo del mouse no esté presionado
@@ -594,29 +594,31 @@ lectura_entrada:
   cmp [status], pausa
   je mouse
 
-  mov ax, 0h
-  push ax
-  call  eliminar_lineas
+  push 0h
+  call eliminar_lineas
   pop ax
 
   cmp ax, 0h
-  je no_eliminar_lineas
-  call  dibujar_lineas_marcadas
-  call  limpiar_lineas
+  je no_eliminar_lineas ; Si no se eliminan líneas
+  call imprime_lines
+  call dibujar_lineas_marcadas
+  call limpiar_lineas
   pausar_programa 1h, 0000h
-  call  dibujar_tab
+  call dibujar_tab
   call actualizar_level
 
 no_eliminar_lineas:
   call calcular_sombra
   call dibuja_sombra
-  call  dibuja_actual
+  call dibuja_actual
 
   pausar_programa 0h, [wait_time]
+  call  borra_actual
+  call  borra_sombra
+
   cmp [update_aux], 0
   jg continuar_v
 
-  call  borra_actual
   inc   [pieza_curr.y]
 
   lea ax, [pieza_curr]
@@ -644,7 +646,7 @@ revertir_avance_v:
 
 continuar_revertir_avance_v:
   dec [pieza_curr.y]
-  call  dibuja_actual
+  call dibuja_actual
 
   lea ax, [pieza_curr]
   push ax
@@ -910,6 +912,7 @@ giro_der_inv:
 procesar_cambio_pieza:
   call borra_next
   call borra_actual
+  call borra_sombra
   call cambiar_next_curr
 
   ; Validar que la nueva posición esté dentro del tablero
@@ -1335,6 +1338,18 @@ fin_dibujar_bloque:
     ret
   endp
 
+  BORRA_SOMBRA proc
+    lea si, pieza_sombra
+    lea di, [pieza_sombra.bloques]
+    mov al, [pieza_sombra.x]
+    mov ah, [pieza_sombra.y]
+    mov [col_aux], al
+    mov [ren_aux], ah
+
+    call BORRA_PIEZA
+    ret
+  endp
+
   BORRA_NEXT proc
     lea si, pieza_next
     lea di, pieza_next.bloques
@@ -1567,7 +1582,7 @@ continuar_agregar_pieza_tab:
 
   ELIMINAR_LINEAS proc
     mov bp, sp
-    mov [conta], 0
+    mov [conta], 0h
 
     mov cx, lim_inferior
 loop_recorrer_lineas:
@@ -1596,8 +1611,7 @@ loop loop_marcar_linea
 recorrer_siguiente_linea:
     pop cx
     loop loop_recorrer_lineas
-    call imprime_lines
-    mov ax, 0
+    xor ah, ah
     mov al, [conta]
     mov [bp+2], ax
     ret
@@ -1850,12 +1864,7 @@ terminar_recorrer_sombra:
     call imprime_hiscore
 
   continuar_actualizar_level:
-    sub wait_time, 5555h
-    ;mov ax, 0FFFFh
-    ;mov bx, [level]
-    ;div bl
-    ;xor ah, ah
-    ;mov [wait_time], ax
+    sub wait_time, 05F0h
     call imprime_level
     ret
   endp

@@ -1,23 +1,32 @@
+; Estructura y Programación de Computadoras
+; Proyecto Final
+; Equipo 1
+; * García Lemus, Rocío
+; * Ríos Lira, Gamaliel
+; * Vélez Grande, Cinthya
+
 title "Proyecto: Tetris"
   .model small
   .386        ; Versión del procesador
   .stack 512  ; Tamaño del segmento de "stack"
   .data       ; Inicio del segmento de datos
 
-
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Definición de tipos de dato
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+; Cada uno de los bloques individuales de una pieza
 BLOQUE struc
-  x     db  ?
-  y     db  ?
+  x     db  ? ; Posición 'x' relativa al origen
+  y     db  ? ; Posición 'y' relativa al origen
 ends
 
+; Describe una pieza con sus respectivos bloques
 PIEZA struc
-  x     db  ?
-  y     db  ?
-  color db  ?
-  bloques BLOQUE 4 dup(?)
+  x     db  ? ; Posición 'x' con respecto al tablero
+  y     db  ? ; Posición 'y' con respecto al tablero
+  color db  ? ; Color de la pieza
+  bloques BLOQUE 4 dup(?) ; Los cuatro bloques de la pieza
 ends
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -77,38 +86,40 @@ bgMagentaClaro    equ   0D0h
 bgAmarillo        equ   0E0h
 bgBlanco          equ   0F0h
 
-;Valores para delimitar el área de juego
+; Valores para delimitar el área de juego
 lim_superior      equ    1
 lim_inferior      equ    23
 lim_izquierdo     equ    1
 lim_derecho       equ    10
 
-;Indica cuántas veces se lee el teclado mientras la pieza avanza un cuadro
+; Indica cuántas veces se lee el teclado mientras la pieza avanza un cuadro
 update_rate       equ   5
 
-;Indica el número de líneas que se tienen que completar para subir un nivel
+; Indica el número de líneas que se tienen que completar para subir un nivel
 lines_per_level   equ   4
 
-;Valores de referencia para la posición inicial de la primera pieza
+; Valores de referencia para la posición inicial de la primera pieza
 ini_columna       equ   lim_derecho/2
 ini_renglon       equ   -1
 
-;Valores para la posición de los controles e indicadores dentro del juego
-;Next
+; Valores para la posición de los controles e indicadores dentro del juego
+; Next
 next_col          equ    lim_derecho+7
 next_ren          equ    6
 
-;Data
+; Data
 hiscore_ren       equ   10
 hiscore_col       equ   lim_derecho+7
 level_ren         equ   12
 level_col         equ   lim_derecho+7
 lines_ren         equ   14
 lines_col         equ   lim_derecho+7
+
+; Mensaje de fin de juego
 perdiste_ren      equ   14
 perdiste_col      equ   (lim_derecho+lim_izquierdo)/2-(finPerdisteStr-perdisteStr)/2+1
 
-;Botón STOP
+; Botón STOP
 stop_col          equ   lim_derecho+15
 stop_ren          equ   lim_inferior-4
 stop_izq          equ   stop_col
@@ -116,7 +127,7 @@ stop_der          equ   stop_col+2
 stop_sup          equ   stop_ren
 stop_inf          equ   stop_ren+2
 
-;Botón PAUSE
+; Botón PAUSE
 pause_col         equ   lim_derecho+25
 pause_ren         equ   lim_inferior-4
 pause_izq         equ   pause_col
@@ -124,7 +135,7 @@ pause_der         equ   pause_col+2
 pause_sup         equ   pause_ren
 pause_inf         equ   pause_ren+2
 
-;Botón PLAY
+; Botón PLAY
 play_col          equ   lim_derecho+35
 play_ren          equ   lim_inferior-4
 play_izq          equ   play_col
@@ -132,7 +143,7 @@ play_der          equ   play_col+2
 play_sup          equ   play_ren
 play_inf          equ   play_ren+2
 
-;Piezas
+; Piezas
 linea             equ   0
 cuadro            equ   1
 lnormal           equ   2
@@ -141,7 +152,7 @@ tnormal           equ   4
 snormal           equ   5
 sinvertida        equ   6
 
-;Status
+; Status
 paro              equ   0
 activo            equ   1
 pausa             equ   2
@@ -197,12 +208,6 @@ z_shape      db    0, 0, 0, 1, 1, 0, 1,-1
 col_aux           db     0
 ren_aux           db     0
 
-; Variables para manejo del reloj del sistema
-ticks             dw    0      ;contador de ticks
-tick_ms           dw    55     ;55 ms por cada tick del sistema, esta variable se usa para operación de MUL convertir ticks a segundos
-mil               dw    1000   ;dato de valor decimal 1000 para operación DIV entre 1000
-diez              dw    10
-
 ; Variables para el status del juego
 status            db    0     ;Status de juegos: 0 stop, 1 active, 2 pause
 conta             db    0     ;Contador auxiliar para algunas operaciones
@@ -215,6 +220,9 @@ boton_color       db    0
 
 ; Auxiliar para cálculo de coordenadas del mouse
 ocho              db     8
+
+; Variable auxiliar para convertir números a cadena
+diez              dw    10
 
 ; Mensaje para cuando el driver del mouse no esté disponible
 no_mouse          db     'No se encuentra driver de mouse. Presione [enter] para salir$'
@@ -255,9 +263,9 @@ endm
 
 ; muestra_cursor_mouse - Establece la visibilidad del cursor del mouser
 muestra_cursor_mouse  macro
-  mov   ax,1    ;opcion 0001h
-  int   33h      ;int 33h para manejo del mouse. Opcion AX=0001h
-          ;Habilita la visibilidad del cursor del mouse en el programa
+  mov   ax,1  ;opcion 0001h
+  int   33h   ;int 33h para manejo del mouse. Opcion AX=0001h
+              ;Habilita la visibilidad del cursor del mouse en el programa
 endm
 
 ; posiciona_cursor_mouse - Establece la posición inicial del cursor del mouse
@@ -265,8 +273,8 @@ posiciona_cursor_mouse  macro columna,renglon
   mov   dx, renglon
   mov   cx, columna
   mov   ax, 4    ;opcion 0004h
-  int   33h     ;int 33h para manejo del mouse. Opcion AX=0001h
-                ;Habilita la visibilidad del cursor del mouse en el programa
+  int   33h      ;int 33h para manejo del mouse. Opcion AX=0001h
+                 ;Habilita la visibilidad del cursor del mouse en el programa
 endm
 
 ; oculta_cursor_teclado - Oculta la visibilidad del cursor del teclado
@@ -279,7 +287,7 @@ endm
 ; apaga_cursor_parpadeo - Deshabilita el parpadeo del cursor cuando se imprimen caracteres con fondo de color
 ; Habilita 16 colores de fondo
 apaga_cursor_parpadeo  macro
-  mov ax, 1003h     ;Opcion 1003h
+  mov ax, 1003h     ;Opción 1003h
   xor bl ,bl        ;BL = 0, parámetro para int 10h opción 1003h
   int 10h           ;int 10, opcion 01h. Cambia la visibilidad del cursor del teclado
 endm
@@ -357,24 +365,29 @@ lee_mouse  macro
   int 33h
 endm
 
+; lee_teclado - Lee la tecla presionada
+;;Z=0 si se presiona una tecla
+;;AL retorna con el valor ASCII de la tecla presionada
 lee_teclado macro
   mov ah, 01h
   int 16h
 endm
 
+; limpia_teclado - Limpia la tecla presionada del buffer
+;;AL retorna con el valor ASCII de la tecla en el buffer
 limpia_teclado macro
   mov ah, 00h
   int 16h
 endm
 
-;comprueba_mouse - Revisa si el driver del mouse existe
+; comprueba_mouse - Revisa si el driver del mouse existe
 comprueba_mouse   macro
-  mov ax,0    ;opcion 0
-  int 33h      ;llama interrupcion 33h para manejo del mouse, devuelve un valor en AX
-          ;Si AX = 0000h, no existe el driver. Si AX = FFFFh, existe driver
+  mov ax,0    ; opcion 0
+  int 33h     ; llama interrupcion 33h para manejo del mouse, devuelve un valor en AX
+              ; Si AX = 0000h, no existe el driver. Si AX = FFFFh, existe driver
 endm
 
-;delimita_mouse_h - Delimita la posición del mouse horizontalmente dependiendo los valores 'minimo' y 'maximo'
+; delimita_mouse_h - Delimita la posición del mouse horizontalmente dependiendo los valores 'minimo' y 'maximo'
 delimita_mouse_h   macro minimo,maximo
   mov cx,minimo    ;establece el valor mínimo horizontal en CX
   mov dx,maximo    ;establece el valor máximo horizontal en CX
@@ -382,32 +395,43 @@ delimita_mouse_h   macro minimo,maximo
   int 33h      ;llama interrupcion 33h para manejo del mouse
 endm
 
+; generar_aleatorio - Genera un número aleatorio entre 0 y 'max'-1
+;; El número generado se almacena en DX
 generar_aleatorio macro max
   local fin_generar_aleatorio
+  
+  ; Se lee el tiempo actual
   mov ah, 00h
   int 1Ah
 
+  ; Obtención del siguiente elemento del arreglo
   lea bx, [rand_seq]
   mov di, [rand_index]
-
   mov al, [bx + di]
+  
+  ; Se aplica XOR para dar pseudo-aleatoridad
   xor dl, al
 
+  ; Se calcula el módulo y se almacena en DX
   mov  ax, dx
   xor  dx, dx
   mov  cx, max
   div  cx
 
+  ; Se calcula la siguiente posición del arreglo
   inc rand_index
   mov ax, rand_index
-  test ax, max_rand_index
-  jz  fin_generar_aleatorio
+  cmp ax, max_rand_index
+  je  fin_generar_aleatorio
   mov rand_index, 0h
+
+  ; Se almacena el valor obtenido en la siguiente posición
   mov di, [rand_index]
   mov [bx + di], dl
 fin_generar_aleatorio:
 endm
 
+; crear_pieza - Genera nuevos valores para los campos de la 'pieza' proporcionada
 crear_pieza   macro pieza
   local loop_crear_bloques
   local escoger_pieza_i
@@ -421,22 +445,23 @@ crear_pieza   macro pieza
   local loop_girar_generada
   local loop_elegir_color
 
-generar_aleatorio 7h
+  ; Se escoge el tipo de pieza
+  generar_aleatorio 7h
 
-cmp dl, 0h
-je escoger_pieza_i
-cmp dl, 1h
-je escoger_pieza_j
-cmp dl, 2h
-je escoger_pieza_l
-cmp dl, 3h
-je escoger_pieza_o
-cmp dl, 4h
-je escoger_pieza_s
-cmp dl, 5h
-je escoger_pieza_t
-cmp dl, 6h
-je escoger_pieza_z
+  cmp dl, 0h
+  je escoger_pieza_i
+  cmp dl, 1h
+  je escoger_pieza_j
+  cmp dl, 2h
+  je escoger_pieza_l
+  cmp dl, 3h
+  je escoger_pieza_o
+  cmp dl, 4h
+  je escoger_pieza_s
+  cmp dl, 5h
+  je escoger_pieza_t
+  cmp dl, 6h
+  je escoger_pieza_z
 
 escoger_pieza_i:
   lea bx, [i_shape]
@@ -461,8 +486,8 @@ escoger_pieza_z:
   jmp escoger_pieza_fin;
 escoger_pieza_fin:
 
+  ; Se copia la estructura de las platillas para cada pieza
   lea di, [pieza.bloques]
-
   mov cx, 4
 loop_crear_bloques:
 
@@ -479,22 +504,28 @@ loop_crear_bloques:
   mov [pieza.x], ini_columna
   mov [pieza.y], ini_renglon
 
-  ; Se genera un color aleatorio
+  ; Se genera un color aleatorio (no Gris Oscuro ni Negro)
 loop_elegir_color:
   generar_aleatorio 0Fh
+
+  ; Validación de colores
   cmp dl, cGrisOscuro
   je loop_elegir_color
+
   cmp dl, cNegro
   je loop_elegir_color
   mov [pieza.color], dl
 
+  ; Se asigna una rotación a la pieza
   generar_aleatorio 4h
+  
+  ; Se gira el número de veces especificadas (0, 1, 2 ó 3)
   lea bx, [pieza]
 
   mov cx, dx
 loop_girar_generada:
   push cx
-  push bx
+  push bx ; Paso de parámetro al procedimiento
   call giro_der
   pop bx
   pop  cx
@@ -502,6 +533,9 @@ loop_girar_generada:
 
 endm
 
+; pausar_programa - Pausa un número específicado de microsegundos el programa
+;; t1 - parte alta del tiempo a pausar
+;; t2 - parte baja del tiempo a pausar
 pausar_programa macro t1, t2
   mov   cx, t1
   mov   dx, t2
@@ -509,6 +543,10 @@ pausar_programa macro t1, t2
   int   15h
 endm
 
+; obtener_tab_pos - Obtiene el valor de la matriz TAB del renglón 'ren' y la columna 'col'
+;; ren - El renglón a buscar
+;; col - La columna a buscar
+; El valor se retorna en el registro AL
 obtener_tab_pos macro ren, col
   push bx
   push di
@@ -528,12 +566,16 @@ obtener_tab_pos macro ren, col
   lea bx, [tablero]
   mov di, ax
 
-  mov al, [bx+di]
+  mov al, [bx+di] ; Deplazamiento = (ren*lim_derecho - 1) + col - 1
 
   pop di
   pop bx
 endm
 
+; establecer_tab_pos - Sobreescribe el 'valor' de la matriz TAB en el renglón 'ren' y la columna 'col'
+;; ren - El renglón a modificar
+;; col - La columna a modificar
+;; valor - El valor a sobreescribir
 establecer_tab_pos macro ren, col, valor
   push ax
   push bx
@@ -556,7 +598,7 @@ establecer_tab_pos macro ren, col, valor
   mov di, ax
 
   mov dl, valor
-  mov [bx+di], dl
+  mov [bx+di], dl ; Deplazamiento = (ren*lim_derecho - 1) + col - 1
 
   pop dx
   pop di
@@ -569,17 +611,17 @@ endm
 ;;;;;;;;;;;;;;;;;;;;;;;;
 
   .code
-inicio:          ;etiqueta inicio
+inicio:             ; etiqueta inicio
   inicializa_ds_es
 
-  comprueba_mouse    ;macro para revisar driver de mouse
-  xor ax, 0FFFFh    ;compara el valor de AX con FFFFh, si el resultado es zero, entonces existe el driver de mouse
-  jz imprime_ui    ;Si existe el driver del mouse, entonces salta a 'imprime_ui'
-  ;Si no existe el driver del mouse entonces se muestra un mensaje
+  comprueba_mouse   ; macro para revisar driver de mouse
+  xor ax, 0FFFFh    ; compara el valor de AX con FFFFh, si el resultado es zero, entonces existe el driver de mouse
+  jz imprime_ui     ; Si existe el driver del mouse, entonces salta a 'imprime_ui'
+  ; Si no existe el driver del mouse entonces se muestra un mensaje
   lea dx, [no_mouse]
-  mov ax, 0900h    ;opcion 9 para interrupcion 21h
-  int 21h        ;interrupcion 21h. Imprime cadena.
-  jmp salir_enter    ;salta a 'salir_enter'
+  mov ax, 0900h    ; opcion 9 para interrupcion 21h
+  int 21h          ; interrupcion 21h. Imprime cadena.
+  jmp salir_enter  ; salta a 'salir_enter'
 
 imprime_ui:
   clear                 ;limpia pantalla
@@ -592,63 +634,68 @@ imprime_ui:
 ;Revisar que el boton izquierdo del mouse no esté presionado
 ;Si el botón está suelto, continúa a la sección "mouse"
 ;si no, se mantiene indefinidamente en "mouse_no_clic" hasta que se suelte
-lectura_entrada:
-  cmp [status], paro
-  je mouse
-  cmp [status], pausa
-  je mouse
+ciclo_juego: ; Ciclo principal del juego
+  cmp [status], paro  ; No hacer nada si está el estado de paro
+  je mouse            ; Leer mouse
+  cmp [status], pausa ; No hacer nada si está el estado de pausa
+  je mouse            ; Leer mouse
 
+  ; Marcar líneas a eliminar (si hay)
   push 0h
-  call eliminar_lineas
+  call marcar_lineas
   pop ax
 
   cmp ax, 0h
-  je no_eliminar_lineas ; Si no se eliminan líneas
-  call imprime_lines
-  call dibujar_lineas_marcadas
-  call limpiar_lineas
-  pausar_programa 1h, 0000h
-  call dibujar_tab
-  call actualizar_level
+  je no_eliminar_lineas   ; Si no se eliminan líneas omitir las siguientes instrucciones
+  call imprime_lines      ; Actualizar el marcador de líneas
+  call dibujar_lineas_marcadas  ; Dibujar las líneas a eliminar (blancas)
+  call limpiar_lineas     ; Eliminar las líneas marcadas de la matriz
+  pausar_programa 1h, 0000h ; Animar el tablero
+  call dibujar_tab        ; Volver a dibujar el tablero
+  call actualizar_level   ; Recaulcular el nuevo nivel
 
 no_eliminar_lineas:
-  call calcular_sombra
-  call dibuja_sombra
-  call dibuja_actual
+  call calcular_sombra ; Recalcular la sombra de la pieza
+  call dibuja_sombra   ; Dibujar la sombra de la pieza
+  call dibuja_actual   ; Dibujar la pieza actual
 
-  pausar_programa 0h, [wait_time]
-  call  borra_actual
-  call  borra_sombra
+  pausar_programa 0h, [wait_time] ; Pausar el programa un número determinado de microsegundos (aumenta/disminuye velocidad del juego)
+  call  borra_actual  ; Borra la  pieza actual
+  call  borra_sombra  ; Borra la sombra de la pieza
 
-  cmp [update_aux], 0
-  jg continuar_v
+  cmp [update_aux], 0 ; Cantidad de teclas por iteración
+  jg continuar_juego
 
-  inc   [pieza_curr.y]
+  ; Desplaza la pieza hacia abajo
+  inc [pieza_curr.y]
 
   lea ax, [pieza_curr]
-  push ax
-  call validar_lim_v
+  push ax ; Parámetro para el procedimiento
+  call validar_lim_v ; Valida que no haya llegado hasta abajo
   pop ax
 
   cmp ax, 0h
   je revertir_avance_v ; Si hay choque
 
   lea ax, [pieza_curr]
-  push ax
-  call validar_tab_v
+  push ax ; Parámetro para el procedimiento
+  call validar_tab_v ; Valida que no haya chocado con ninguna pieza
   pop ax
   mov [update_aux], update_rate+1
 
   cmp ax, 0h
-  jne continuar_v ; Si no hay choque
+  jne continuar_juego ; Si no hay choque
 
+; Si se detectó una colisión vertical
 revertir_avance_v:
-  call detectar_final
-  cmp ax, 1
-  jne continuar_revertir_avance_v
-  mov [status], paro
-  call IMPRIME_PERDISTE
+  call detectar_final ; Se verifica si se ha perdido
 
+  cmp ax, 1
+  jne continuar_revertir_avance_v ; Si no se ha perdido
+  mov [status], paro
+  call imprime_perdiste
+
+; Retroceder si hay colisión
 continuar_revertir_avance_v:
   dec [pieza_curr.y]
   call dibuja_actual
@@ -658,13 +705,13 @@ continuar_revertir_avance_v:
   call agregar_pieza_tab
   pop ax
   
-  ; Asignación de nueva de pieza
+; Asignar nueva pieza
 asignar_nueva_pieza:
   lea ax, [pieza_curr]
   push ax
   lea ax, [pieza_next]
   push ax
-  call copiar_piezas
+  call copiar_piezas ; Actual = Next
   pop ax
   pop ax
 
@@ -673,14 +720,19 @@ asignar_nueva_pieza:
   crear_pieza pieza_next
   call  dibuja_next
 
-continuar_v:
+continuar_juego:
   dec [update_aux]
-  lee_mouse
+  lee_mouse ; Leer mouse
+
+  ; Procesar mouse
   cmp bx, 01h
   je  mouse
-  lee_teclado
+
+  lee_teclado ; Leer teclado
+  
+  ; Procesar teclado
   jnz teclado
-  jmp lectura_entrada
+  jmp ciclo_juego
 
 mouse:
   lee_mouse
@@ -703,23 +755,28 @@ conversion_mouse:
 
   ;Aquí se revisa si se hizo clic en el botón izquierdo
   test bx,0001h     ;Para revisar si el boton izquierdo del mouse fue presionado
-  jz lectura_entrada       ;Si el boton izquierdo no fue presionado, vuelve a leer el estado del mouse
+  jz ciclo_juego       ;Si el boton izquierdo no fue presionado, vuelve a leer el estado del mouse
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;Aqui va la lógica de la posicion del mouse;
+; Aqui va la lógica de la posicion del mouse;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;Si el mouse fue presionado en el renglon 0
   ;se va a revisar si fue dentro del boton [X]
+  
+  ; Verificar si se presiona la tecla 'x'
   cmp dx,0
   je boton_x
 
+  ; Verificar si se presiona algún botón (pause, stop, play)
   cmp dx,lim_inferior-4
   je boton_play
   cmp dx,lim_inferior-3
   je boton_play
   cmp dx,lim_inferior-2
   je boton_play
-  jmp lectura_entrada
+  jmp ciclo_juego
+
+; Procesar botón 'x'
 boton_x:
   jmp boton_x1
 ;Lógica para revisar si el mouse fue presionado en [X]
@@ -727,16 +784,17 @@ boton_x:
 boton_x1:
   cmp cx,76
   jge boton_x2
-  jmp lectura_entrada
+  jmp ciclo_juego
 boton_x2:
   cmp cx,78
   jbe boton_x3
-  jmp lectura_entrada
+  jmp ciclo_juego
 boton_x3:
   ;Se cumplieron todas las condiciones
   jmp salir
-  jmp lectura_entrada
+  jmp ciclo_juego
 
+; Procesar botón 'PLAY'
 boton_play:
   jmp boton_play1
 boton_play1:
@@ -750,8 +808,9 @@ boton_play2:
 boton_play3:
   ;Se cumplieron todas las condiciones
   mov [status], activo
-  jmp lectura_entrada
+  jmp ciclo_juego
 
+; Procesar botón 'PAUSE'
 boton_pause:
   jmp boton_pause1
 boton_pause1:
@@ -765,29 +824,31 @@ boton_pause2:
 boton_pause3:
   ;Se cumplieron todas las condiciones
   mov [status], pausa
-  jmp lectura_entrada
+  jmp ciclo_juego
 
+; Procesar botón 'STOP'
 boton_stop:
   jmp boton_stop1
 boton_stop1:
   cmp cx,stop_izq
   jge boton_stop2
-  jmp lectura_entrada
+  jmp ciclo_juego
 boton_stop2:
   cmp cx,stop_der
   jle boton_stop3
-  jmp lectura_entrada
+  jmp ciclo_juego
 boton_stop3:
   ;Se cumplieron todas las condiciones
   mov [status], paro
   jmp imprime_ui
   
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-;Aqui va la lógica de las teclas presionadas
+; Aqui va la lógica de las teclas presionadas
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 teclado:
   lee_teclado
 
+  ; Detección de teclas
   cmp al, 'h'
   je procesar_mov_izq
   cmp al, 'l'
@@ -800,8 +861,9 @@ teclado:
   je procesar_cambio_pieza
   cmp al, ' '
   je procesar_bajar_rapido
-  jmp continuar
+  jmp continuar_teclado
 
+; Traslación a la izquierda
 procesar_mov_izq:
   ; Trasladar pieza a la izquierda
   dec pieza_curr.x
@@ -820,13 +882,14 @@ procesar_mov_izq:
   call validar_tab_v
   pop ax
   cmp ax, 0h
-  jne continuar
+  jne continuar_teclado
 
 mov_izq_inv:
   ; Si la posición es incorrecta, revertir el movimiento
   inc pieza_curr.x
-  jmp continuar
+  jmp continuar_teclado
 
+; Traslación a la derecha
 procesar_mov_der:
   ; Trasladar pieza a la derecha
   inc pieza_curr.x
@@ -845,13 +908,14 @@ procesar_mov_der:
   call validar_tab_v
   pop ax
   cmp ax, 0h
-  jne continuar
+  jne continuar_teclado
 
 mov_der_inv:
   ; Si la posición es incorrecta, revertir el movimiento
   dec pieza_curr.x
-  jmp continuar
+  jmp continuar_teclado
 
+; Giro a la izquierda
 procesar_giro_izq:
   ; Girar pieza a la izquierda
   lea ax, [pieza_curr]
@@ -873,7 +937,7 @@ procesar_giro_izq:
   call validar_tab_v
   pop ax
   cmp ax, 0h
-  jne continuar
+  jne continuar_teclado
 
 giro_izq_inv:
   ; Si la posición es incorrecta, revertir el movimiento
@@ -881,8 +945,9 @@ giro_izq_inv:
   push ax
   call giro_der
   pop ax
-  jmp continuar
+  jmp continuar_teclado
 
+; Giro a la derecha
 procesar_giro_der:
   ; Girar pieza a la derecha
   lea ax, [pieza_curr]
@@ -904,7 +969,7 @@ procesar_giro_der:
   call validar_tab_v
   pop ax
   cmp ax, 0h
-  jne continuar
+  jne continuar_teclado
 
 giro_der_inv:
   ; Si la posición es incorrecta, revertir el movimiento
@@ -912,8 +977,9 @@ giro_der_inv:
   push ax
   call giro_izq
   pop ax
-  jmp continuar
+  jmp continuar_teclado
 
+; Cambio de 'pieza actual' con 'pieza siguiente'
 procesar_cambio_pieza:
   call borra_next
   call borra_actual
@@ -941,15 +1007,16 @@ procesar_cambio_pieza_inv:
 
 continuar_cambio_pieza:
   call dibuja_next
-  jmp continuar
+  jmp continuar_teclado
 
+; Bajar la pieza rápidamente
 procesar_bajar_rapido:
  call bajar_pieza
  mov [update_aux], 0
 
-continuar:
+continuar_teclado:
   limpia_teclado
-  jmp lectura_entrada
+  jmp ciclo_juego
 
 ;Si no se encontró el driver del mouse, muestra un mensaje y el usuario debe salir tecleando [enter]
 salir_enter:
@@ -966,7 +1033,9 @@ salir:        ;inicia etiqueta salir
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;;;;;;;PROCEDIMIENTOS;;;;;;;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-DIBUJA_UI proc
+
+; dibuja_ui - dibuja todo el tablero del juego para una nueva partida
+dibuja_ui proc
   ;imprimir esquina superior izquierda del marco
   posiciona_cursor 0,0
   imprime_caracter_color marcoEsqSupIzq,cGrisClaro,bgNegro
@@ -1059,13 +1128,14 @@ DIBUJA_UI proc
     ;imprimir título
     posiciona_cursor 0,37
     imprime_cadena_color [titulo],finTitulo-titulo,cBlanco,bgNegro
-    call IMPRIME_TEXTOS
-    call IMPRIME_BOTONES
-    call IMPRIME_DATOS_INICIALES
+    call imprime_textos
+    call imprime_botones
+    call imprime_datos_iniciales
     ret
   endp
 
-  IMPRIME_TEXTOS proc
+  ; imprime_textos - Imprime las etiquetas "NEXT", "LEVEL", "LINES" y "HI-SCORE"
+  imprime_textos proc
     ;Imprime cadena "NEXT"
     posiciona_cursor next_ren,next_col
     imprime_cadena_color nextStr,finNextStr-nextStr,cGrisClaro,bgNegro
@@ -1084,89 +1154,78 @@ DIBUJA_UI proc
     ret
   endp
 
-  IMPRIME_PERDISTE proc
+  ; imprime_perdiste - Imprime la leyenda "PERDISTE"
+  imprime_perdiste proc
     ;Imprime cadena "PERDISTE"
     posiciona_cursor perdiste_ren,perdiste_col
     imprime_cadena_color perdisteStr,finPerdisteStr-perdisteStr,cRojo,bgBlanco
     ret
   endp
 
-  IMPRIME_BOTONES proc
+  ; imprime_botones - Dibuja los tres botones para controlar el juego (stop, pause, play)
+  imprime_botones proc
     ;Botón STOP
     mov [boton_caracter],219d
     mov [boton_color],bgAmarillo
     mov [boton_renglon],stop_ren
     mov [boton_columna],stop_col
-    call IMPRIME_BOTON
+    call imprime_boton
+
     ;Botón PAUSE
     mov [boton_caracter],186d
     mov [boton_color],bgAmarillo
     mov [boton_renglon],pause_ren
     mov [boton_columna],pause_col
-    call IMPRIME_BOTON
+    call imprime_boton
+
     ;Botón PLAY
     mov [boton_caracter],16d
     mov [boton_color],bgAmarillo
     mov [boton_renglon],play_ren
     mov [boton_columna],play_col
-    call IMPRIME_BOTON
+    call imprime_boton
     ret
   endp
 
-  IMPRIME_SCORES proc
-    call IMPRIME_LINES
-    call IMPRIME_HISCORE
-    call IMPRIME_LEVEL
+  ; imprime_scores - Imprime el número de líneas, hi-score y level en el tablero
+  imprime_scores proc
+    call imprime_lines
+    call imprime_hiscore
+    call imprime_level
     ret
   endp
 
-  IMPRIME_LINES proc
+  ; imprime_lines - Imprime el número de líneas
+  imprime_lines proc
     mov [ren_aux],lines_ren
     mov [col_aux],lines_col+20
     mov bx,[lines_score]
-    call IMPRIME_BX
+    call imprime_bx
     ret
   endp
 
-  IMPRIME_HISCORE proc
+  ; imprime_hiscore - Imprime el hi-score
+  imprime_hiscore proc
     mov [ren_aux],hiscore_ren
     mov [col_aux],hiscore_col+20
     mov bx,[hiscore]
-    call IMPRIME_BX
+    call imprime_bx
     ret
   endp
 
-  IMPRIME_LEVEL proc
+  ; imprime_level - Imprime el level
+  imprime_level proc
     mov [ren_aux],level_ren
     mov [col_aux],level_col+20
     mov bx, [level]
-    call IMPRIME_BX
+    call imprime_bx
     ret
   endp
 
-  ;BORRA_SCORES borra los marcadores numéricos de pantalla sustituyendo la cadena de números por espacios
-  BORRA_SCORES proc
-    call BORRA_SCORE
-    call BORRA_HISCORE
-    ret
-  endp
-
-  BORRA_SCORE proc
-    posiciona_cursor lines_ren,lines_col+20     ;posiciona el cursor relativo a lines_ren y score_col
-    imprime_cadena_color blank,5,cBlanco,bgNegro   ;imprime cadena blank (espacios) para "borrar" lo que está en pantalla
-    ret
-  endp
-
-  BORRA_HISCORE proc
-    posiciona_cursor hiscore_ren,hiscore_col+20   ;posiciona el cursor relativo a hiscore_ren y hiscore_col
-    imprime_cadena_color blank,5,cBlanco,bgNegro   ;imprime cadena blank (espacios) para "borrar" lo que está en pantalla
-    ret
-  endp
-
-  ;Imprime el valor del registro BX como entero sin signo (positivo)
-  ;Se imprime con 5 dígitos (incluyendo ceros a la izquierda)
-  ;Se usan divisiones entre 10 para obtener dígito por dígito en un LOOP 5 veces (una por cada dígito)
-  IMPRIME_BX proc
+  ; imprime_bx - Imprime el valor del registro BX como entero sin signo (positivo)
+  ; Se imprime con 5 dígitos (incluyendo ceros a la izquierda)
+  ; Se usan divisiones entre 10 para obtener dígito por dígito en un LOOP 5 veces (una por cada dígito)
+  imprime_bx proc
     mov ax,bx
     mov cx,5
   div10:
@@ -1188,16 +1247,17 @@ DIBUJA_UI proc
     ret
   endp
 
-  IMPRIME_DATOS_INICIALES proc
-    call DATOS_INICIALES     ;inicializa variables de juego
-    call IMPRIME_SCORES
-    call DIBUJA_NEXT
-    call DIBUJA_ACTUAL
+  ; imprime_datos_iniciales - Inicializa e imprime los datos iniciales del juego
+  imprime_datos_iniciales proc
+    call datos_iniciales     ;inicializa variables de juego
+    call imprime_scores
+    call dibuja_next
+    call dibuja_actual
     ret
   endp
 
-  ;Inicializa variables del juego
-  DATOS_INICIALES proc
+  ; datos iniciales - Inicializa variables del juego para un juego nuevo
+  datos_iniciales proc
     mov [lines_score],0
     mov [update_aux], update_rate
     mov [wait_time], 0FFFFh
@@ -1210,18 +1270,17 @@ DIBUJA_UI proc
     ret
   endp
 
-  ;procedimiento IMPRIME_BOTON
-  ;Dibuja un boton que abarca 3 renglones y 5 columnas
-  ;con un caracter centrado dentro del boton
-  ;en la posición que se especifique (esquina superior izquierda)
-  ;y de un color especificado
-  ;Utiliza paso de parametros por variables globales
-  ;Las variables utilizadas son:
-  ;boton_caracter: debe contener el caracter que va a mostrar el boton
-  ;boton_renglon: contiene la posicion del renglon en donde inicia el boton
-  ;boton_columna: contiene la posicion de la columna en donde inicia el boton
-  ;boton_color: contiene el color del boton
-  IMPRIME_BOTON proc
+  ; imprime_boton - Dibuja un boton que abarca 3 renglones y 5 columnas
+  ; con un caracter centrado dentro del boton
+  ; en la posición que se especifique (esquina superior izquierda)
+  ; y de un color especificado
+  ; Utiliza paso de parametros por variables globales
+  ; Las variables utilizadas son:
+  ; boton_caracter: debe contener el caracter que va a mostrar el boton
+  ; boton_renglon: contiene la posicion del renglon en donde inicia el boton
+  ; boton_columna: contiene la posicion de la columna en donde inicia el boton
+  ; boton_color: contiene el color del boton
+  imprime_boton proc
      ;background de botón
     mov ax,0600h     ;AH=06h (scroll up window) AL=00h (borrar)
     mov bh,cRojo     ;Caracteres en color amarillo
@@ -1245,21 +1304,21 @@ DIBUJA_UI proc
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
   ;Los siguientes procedimientos se utilizan para dibujar piezas y utilizan los mismos parámetros
   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
-  ;Como parámetros se utilizan:
-  ;col_aux y ren_aux: Toma como referencia los valores establecidos en ren_aux y en col_aux
-  ;esas coordenadas son la referencia (esquina superior izquierda) de una matriz 4x4
-  ;si - apuntador al arreglo de renglones en donde se van a guardar esas posiciones
-  ;di - apuntador al arreglo de columnas en donde se van a guardar esas posiciones
-  ;si y di están parametrizados porque se puede dibujar la pieza actual o la pieza next
-  ;Se calculan las posiciones y se almacenan en los arreglos correspondientes
-  ;posteriormente se llama al procedimiento DIBUJA_PIEZA que hace uso de esas posiciones para imprimir la pieza en pantalla
+  ; Como parámetros se utilizan:
+  ; col_aux y ren_aux: Toma como referencia los valores establecidos en ren_aux y en col_aux
+  ; esas coordenadas son la referencia (esquina superior izquierda) de una matriz 4x4
+  ; si - apuntador al arreglo de renglones en donde se van a guardar esas posiciones
+  ; di - apuntador al arreglo de columnas en donde se van a guardar esas posiciones
+  ; si y di están parametrizados porque se puede dibujar la pieza actual o la pieza next
+  ; Se calculan las posiciones y se almacenan en los arreglos correspondientes
+  ; posteriormente se llama al procedimiento DIBUJA_PIEZA que hace uso de esas posiciones para imprimir la pieza en pantalla
 
 
-  ;DIBUJA_PIEZA - procedimiento para imprimir una pieza en pantalla
+  ; dibuja_pieza - procedimiento para imprimir una pieza en pantalla
   ;Como parámetros recibe:
-  ;si - apuntador al arreglo de renglones
-  ;di - apuntador al arreglo de columnas
-  DIBUJA_PIEZA proc
+  ; si - apuntador al arreglo de renglones
+  ; di - apuntador al arreglo de columnas
+  dibuja_pieza PROC
     mov cx, 4
   loop_dibuja_pieza:
     push cx
@@ -1283,7 +1342,7 @@ DIBUJA_UI proc
     posiciona_cursor ren_aux, col_aux
     imprime_caracter_color 254, [si.color], bgGrisOscuro
 
-fin_dibujar_bloque:
+  fin_dibujar_bloque:
     pop ax
     pop di
     pop si
@@ -1297,24 +1356,24 @@ fin_dibujar_bloque:
     ret
   endp
 
-  ;DIBUJA_NEXT - se usa para imprimir la pieza siguiente en pantalla
-  ;Primero se debe calcular qué pieza se va a dibujar
-  ;Dentro del procedimiento se utilizan variables referentes a la pieza siguiente
-  DIBUJA_NEXT proc
+  ; dibuja_next - se usa para imprimir la pieza siguiente en pantalla
+  ; Primero se debe calcular qué pieza se va a dibujar
+  ; Dentro del procedimiento se utilizan variables referentes a la pieza siguiente
+  dibuja_next proc
     lea si, pieza_next
     lea di, pieza_next.bloques
     mov [col_aux], next_col+10
     mov [ren_aux], next_ren-1
 
-    call DIBUJA_PIEZA
+    call dibuja_pieza
 
     ret
   endp
 
-  ;DIBUJA_ACTUAL - se usa para imprimir la pieza actual en pantalla
-  ;Primero se debe calcular qué pieza se va a dibujar
-  ;Dentro del procedimiento se utilizan variables referentes a la pieza actual
-  DIBUJA_ACTUAL proc
+  ; dibuja_actual - se usa para imprimir la pieza actual en pantalla
+  ; Primero se debe calcular qué pieza se va a dibujar
+  ; Dentro del procedimiento se utilizan variables referentes a la pieza actual
+  dibuja_actual proc
     lea si, pieza_curr
     lea di, [pieza_curr.bloques]
     mov al, [pieza_curr.x]
@@ -1322,11 +1381,14 @@ fin_dibujar_bloque:
     mov [col_aux], al
     mov [ren_aux], ah
 
-    call DIBUJA_PIEZA
+    call dibuja_pieza
     ret
   endp
 
-  DIBUJA_SOMBRA proc
+  ; dibuja_sombra - se usa para imprimir la sombra de la pieza actual en pantalla
+  ; Primero se debe calcular qué pieza se va a dibujar
+  ; Dentro del procedimiento se utilizan variables referentes a la sombra de la pieza
+  dibuja_sombra proc
     lea si, pieza_sombra
     lea di, [pieza_sombra.bloques]
     mov al, [pieza_sombra.x]
@@ -1334,11 +1396,12 @@ fin_dibujar_bloque:
     mov [col_aux], al
     mov [ren_aux], ah
 
-    call DIBUJA_PIEZA
+    call dibuja_pieza
     ret
   endp
 
-  BORRA_ACTUAL proc
+  ; borra_actual - Borra la pieza actual colocando espacios en blanco en los luegares donde se encuentran sus bloques
+  borra_actual proc
     lea si, pieza_curr
     lea di, [pieza_curr.bloques]
     mov al, [pieza_curr.x]
@@ -1346,11 +1409,12 @@ fin_dibujar_bloque:
     mov [col_aux], al
     mov [ren_aux], ah
 
-    call BORRA_PIEZA
+    call borra_pieza
     ret
   endp
 
-  BORRA_SOMBRA proc
+  ; borra_sombra - Borra la sombra de la pieza actual colocando espacios en blanco en los luegares donde se encuentran sus bloques
+  borra_sombra proc
     lea si, pieza_sombra
     lea di, [pieza_sombra.bloques]
     mov al, [pieza_sombra.x]
@@ -1358,22 +1422,27 @@ fin_dibujar_bloque:
     mov [col_aux], al
     mov [ren_aux], ah
 
-    call BORRA_PIEZA
+    call borra_pieza
     ret
   endp
 
-  BORRA_NEXT proc
+  ; borra_next - Borra la pieza siguiente colocando espacios en blanco en los luegares donde se encuentran sus bloques
+  borra_next proc
     lea si, pieza_next
     lea di, pieza_next.bloques
     mov [col_aux], next_col+10
     mov [ren_aux], next_ren-1
 
-    call BORRA_PIEZA
+    call borra_pieza
 
     ret
   endp
 
-  BORRA_PIEZA proc
+  ; borra_pieza - Borra una pieza colocando espacios en el lugar de sus bloques
+  ; Recibe como parámetros:
+  ; si: La dirección de la pieza a dibujar
+  ; di: La dirección de los bloques de la pieza a dibujar
+  borra_pieza proc
     mov cx, 4
   loop_borra_pieza:
     push cx
@@ -1410,13 +1479,19 @@ fin_borra_bloque:
     ret
   endp
 
-  GIRO_DER proc
+  ; giro_der - Gira una pieza con respecto a su origen (coordenada {0,0}) aplicando una matriz de rotación para 90°
+  ; Recibe como parámetros:
+  ; sp+2: Un apuntador a la pieza a girar
+  giro_der proc
     mov bp, sp
     mov si, [bp+2]
     lea si, [si.bloques]
 
     mov cx, 4
   loop_giro_derecha:
+
+    ; x' = -y
+    ; y' =  x
     mov al, [si.x]
     mov ah, [si.y]
     not ah
@@ -1429,13 +1504,19 @@ fin_borra_bloque:
     ret
   endp
 
-  GIRO_IZQ proc
+  ; giro_der - Gira una pieza con respecto a su origen (coordenada {0,0}) aplicando una matriz de rotación para -90°
+  ; Recibe como parámetros:
+  ; sp+2: Un apuntador a la pieza a girar
+  giro_izq proc
     mov bp, sp
     mov si, [bp+2]
     lea si, [si.bloques]
 
     mov cx, 4
   loop_giro_izquierda:
+
+    ; x' =  y
+    ; y' = -x
     mov al, [si.x]
     mov ah, [si.y]
     not al
@@ -1448,7 +1529,12 @@ fin_borra_bloque:
     ret
   endp
 
-  VALIDAR_LIM_H proc
+  ; validar_lim_h - Valida que una pieza no sobresalga del tablero de juego horizontalmente
+  ; Recibe como parámetros:
+  ; sp+2: Un apuntador a la pieza a validar
+  ; Retorna:
+  ; sp+2: 1 si no falla, 0 si falla
+  validar_lim_h proc
     mov bp, sp
     mov di, [bp+2]
     lea si, [di.bloques]
@@ -1477,7 +1563,12 @@ fin_borra_bloque:
     ret
   endp
 
-  VALIDAR_LIM_V proc
+  ; validar_lim_v - Valida que una pieza no esté más abajo del tablero
+  ; Recibe como parámetros:
+  ; sp+2: Un apuntador a la pieza a validar
+  ; Retorna:
+  ; sp+2: 1 si no falla, 0 si falla
+  validar_lim_v proc
     mov bp, sp
     mov di, [bp+2]
     lea si, [di.bloques]
@@ -1504,7 +1595,12 @@ fin_borra_bloque:
   endp
 
 
-  VALIDAR_TAB_V proc
+  ; validar_tab_v - Valida que una pieza no colisione con los bloques del tablero
+  ; Recibe como parámetros:
+  ; sp+2: Un apuntador a la pieza a validar
+  ; Retorna:
+  ; sp+2: 1 si no falla, 0 si falla
+  validar_tab_v proc
     mov bp, sp
     mov di, [bp+2]
     lea si, [di.bloques]
@@ -1553,7 +1649,10 @@ continuar_validar_tab_v:
     ret
   endp
 
-  AGREGAR_PIEZA_TAB proc
+  ; agregar_pieza_tab - Agrega una pieza al tablero
+  ; Recibe como parámetros:
+  ; sp+2: Un apuntador a la pieza a agregar
+  agregar_pieza_tab proc
     mov bp, sp
     mov di, [bp+2]
     lea si, [di.bloques]
@@ -1592,7 +1691,10 @@ continuar_agregar_pieza_tab:
     ret
   endp
 
-  ELIMINAR_LINEAS proc
+  ; marcar_lineas - Busca renglones completos y en caso de encontrarlos, los marca con 0FEh
+  ; Retorna:
+  ; sp+2: El número de líneas marcadas
+  marcar_lineas proc
     mov bp, sp
     mov [conta], 0h
 
@@ -1608,13 +1710,15 @@ loop_recorrer_linea:
     obtener_tab_pos ren_aux, col_aux
 
     cmp al, 0FFh
-    je recorrer_siguiente_linea
+    je recorrer_siguiente_linea ; Si hay una celda vacía, salta a la siguiente línea
 
     loop loop_recorrer_linea
 
     mov cx, lim_derecho
-    inc lines_score
-    inc [conta]
+    inc lines_score ; Aumenta el score
+    inc [conta] ; Aumenta el contador de líneas detectadas
+
+  ; Marca la línea
 loop_marcar_linea:
     mov col_aux, cl
     establecer_tab_pos ren_aux, col_aux, 0FEh
@@ -1629,7 +1733,8 @@ recorrer_siguiente_linea:
     ret
   endp
 
-  DIBUJAR_LINEAS_MARCADAS proc
+  ; dibujar_lineas_marcadas - Dibuja las líneas marcadas con un destello blanco
+  dibujar_lineas_marcadas proc
     mov cx, lim_inferior
 loop_dibujar_linea_v:
     mov ren_aux, cl
@@ -1641,7 +1746,7 @@ loop_dibujar_linea_h:
     obtener_tab_pos ren_aux, col_aux
 
     cmp al, 0FEh
-    jne dibujar_siguiente_linea
+    jne dibujar_siguiente_linea ; Si no está marcada, continúa
 
     push cx
     posiciona_cursor ren_aux, col_aux
@@ -1656,7 +1761,8 @@ dibujar_siguiente_linea:
     ret
   endp
 
-  DIBUJAR_TAB proc
+  ; dibujar_tab - Redibuja todos los bloques del tablero
+  dibujar_tab proc
     mov cx, lim_inferior
 loop_dibujar_tab_v:
     mov ren_aux, cl
@@ -1670,11 +1776,13 @@ loop_dibujar_tab_h:
     push cx
     cmp al, 0FFh
     je imprime_vacio
+    ; Imprime bloque
     mov tab_aux, al
     posiciona_cursor ren_aux, col_aux
     imprime_caracter_color 254, tab_aux, bgGrisOscuro
     jmp continuar_imprimir
 imprime_vacio:
+    ; Imprime espacio en blanco
     posiciona_cursor ren_aux, col_aux
     imprime_caracter_color ' ', cNegro, bgNegro
 continuar_imprimir:
@@ -1687,7 +1795,8 @@ continuar_imprimir:
     ret
   endp
 
-  LIMPIAR_LINEAS proc
+  ; limpiar_lineas - Recorre todas las líneas blancas (a lo más 4) hasta el principio de TAB y las elimina
+  limpiar_lineas proc
     lea bx, [tablero]
 
     mov cx, 4h
@@ -1723,7 +1832,11 @@ terminar_limpia:
     ret
   endp
 
-  COPIAR_PIEZAS proc
+  ; copiar_piezas - Copia una pieza de un origen a un destino
+  ; Recibe como parámetros:
+  ; sp+2: Apuntador a la pieza origen
+  ; sp+3: Apuntador a la pieza destino
+  copiar_piezas proc
     mov bp, sp
     mov di, [bp+2] ; Origen
     mov si, [bp+4] ; Destino
@@ -1762,7 +1875,8 @@ terminar_limpia:
     ret
   endp
 
-  CALCULAR_SOMBRA proc
+  ; calcular_sombra - Partiendo de la pieza actual, crea una copia, la cual hace descender hasta que colisiona. A esta pieza le asigna el color gris oscuro
+  calcular_sombra proc
     lea ax, [pieza_sombra]; Destino
     push ax
     lea ax, [pieza_curr]; Origen
@@ -1773,7 +1887,7 @@ terminar_limpia:
     pop ax
     pop ax
 
-    mov [pieza_sombra.color], cGrisOscuro
+    mov [pieza_sombra.color], cGrisOscuro ; Color de la pieza
 
 loop_recorrer_sombra:
     lea ax, [pieza_sombra]
@@ -1798,7 +1912,8 @@ terminar_recorrer_sombra:
     ret
   endp
 
-  CAMBIAR_NEXT_CURR proc
+  ; cambiar_next_curr - Intercambia las posiciones de 'pieza_next' y 'pieza_curr' si y sólo si no hay colisiones
+  cambiar_next_curr proc
     ; aux = next
     lea ax, [pieza_aux]
     push ax
@@ -1841,7 +1956,8 @@ terminar_recorrer_sombra:
 
     ret
 
-    BAJAR_PIEZA proc
+    ; bajar_pieza - Intercambia le asigna la posición de la pieza actual a la pieza sombra
+    bajar_pieza proc
       mov al, [pieza_curr.color]
       mov tab_aux, al
 
@@ -1859,7 +1975,8 @@ terminar_recorrer_sombra:
     endp
   endp
 
-  ACTUALIZAR_LEVEL proc
+  ; actualiza_level - Vuelve a calcular el nivel del juego tomando en cuenta el número de líneas borradas
+  actualizar_level proc
     mov ax, lines_score
     mov bl, lines_per_level
     div bl
@@ -1881,10 +1998,13 @@ terminar_recorrer_sombra:
     ret
   endp
 
-  DETECTAR_FINAL proc
+  ; detectar_final - Detecta si el juego ha terminado o no
+  ; Retorna:
+  ; ax: 0 si no ha terminado, 1 si ya terminó
+  detectar_final proc
     lea di, [pieza_curr.bloques]
 
-    mov cx, 4
+    mov cx, 4 ; Se itera sobre los cuatro bloques de la pieza
 
     loop_detectar_final:
 
@@ -1906,7 +2026,8 @@ terminar_recorrer_sombra:
     ret
   endp
 
-  LEER_HIGHSCORE proc
+  ; leer_highscore - Carga el puntaje más alto del archivo
+  leer_highscore proc
     ; Se abre el archivo
     mov ah,3Dh
 		mov al,0   ; 0 - para lectura
@@ -1919,7 +2040,7 @@ terminar_recorrer_sombra:
 		mov cx,2   ; Se leen 2 [bytes]
 		lea dx,[score_read]
 		mov bx,[scores_handle]
-		int 21h   ; call DOS 
+		int 21h
 
     mov ax, [score_read]
     mov [hiscore], ax
@@ -1927,11 +2048,12 @@ terminar_recorrer_sombra:
     ; Se cierra el archivo
     mov ah,3Eh
     mov bx,[scores_handle]
-		int 21h   ; call DOS
+		int 21h
     ret
   endp
 
-  ESCRIBIR_HIGHSCORE proc
+  ; escribir_highscore - Sobreescribe el puntaje más alto del archivo
+  escribir_highscore proc
     ; Se abre el archivo
     mov ah,3Dh
 		mov al,1   ; 1 - para escritura
@@ -1953,7 +2075,8 @@ terminar_recorrer_sombra:
     ret
   endp
 
-  INICIALIZAR_TAB proc
+  ; inicializa_tab - Asigna 0FFh a todas las celdas de TAB
+  inicializar_tab proc
     lea di, [tablero]
 
     mov al, 0FFh
